@@ -8,11 +8,11 @@
 @(define the-eval (make-base-eval))
 @(the-eval '(require erda/rvm))
 
-@title{@Erda-rkt and @Erda-cxx}
+@title{Erda}
 
 @author["Tero Hasu"]
 
-These are @deftech{@Erda-rkt} and @deftech{@Erda-cxx}, small, experimental programming languages and implementations.
+These are @deftech{@Erda-rkt} and @deftech{@Erda-cxx}, small programming languages and implementations for experimenting with error handling mechanisms.
 
 @section{License}
 
