@@ -1,12 +1,11 @@
-#lang s-exp "i1-lang.rkt"
+#lang erda/rvm
 
 #|
 
-Some test code written in the "i1-lang.rkt" language.
+Some test code written in the erda/rvm language.
 
 |#
 
-(require "i1-lib.rkt")
 (require (for-racket [racket/base define #%datum #%app displayln]))
 
 (let-racket-selected
