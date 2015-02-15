@@ -18,7 +18,7 @@ These are @deftech{@Erda-rkt} and @deftech{@Erda-cxx}, small programming languag
 
 Except where otherwise noted, the following license applies:
 
-Copyright © 2012-2014 University of Bergen and the authors.
+Copyright © 2012-2015 University of Bergen and the authors.
 
 Authors: Tero Hasu
 

@@ -49,7 +49,7 @@ primitives.
   #:alert ([bad-arg pre-unless (and (alert-name? x) (alert-name? y))])
   (rapp Good (rapp symbol=? (rapp Good-v x) (rapp Good-v y))))
 
-(define* (alert-name-of-result x) #:handler
+(define* (alert-name-of x) #:handler
   #:alert ([bad-arg pre-unless (bad-result? x)])
   (rapp Good (rapp Bad-name x)))
 

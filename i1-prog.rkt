@@ -148,4 +148,16 @@ Some test code written in the erda/rvm language.
 (try 1 (/ 1 0) #:catch ex [_ 9]) ;; => (Good 9)
 (try (/ 1 0) 1 #:catch ex [_ 9]) ;; => (Good 1)
 
+(define (identity x) x)
 
+(identity (identity 88))
+
+(define (factorial x)
+  (cond
+   ((< x 0) (raise 'bad-arg))
+   ((= x 0) 1)
+   (else (* x (factorial (- x 1))))))
+
+(factorial -4)
+(factorial 0)
+(factorial 6)
