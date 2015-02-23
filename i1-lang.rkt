@@ -461,23 +461,32 @@ The RVM language, without the reader and the standard library.
 
 (define-my-syntax my-app monadic-app #%app)
 
+(define-syntax let-Good-args
+  (syntax-rules ()
+    [(_ () #:op op-id #:then then ...)
+     (let () then ...)]
+    [(_ ([p e] . rest) #:op op-id #:then then ...)
+     (let ([p e])
+       (if (Bad? p)
+           (make-Bad #:bad-arg p #:for op-id)
+           (let-Good-args rest #:op op-id #:then then ...)))]))
+
 ;; The opposite of a `do` in Haskell. The `b ...` expressions deal in
 ;; bare values. The "free variables" and their values should be given
 ;; as `[p e] ...` for unwrapping.
 (define-syntax* (anti-do stx)
   (syntax-parse stx
     [(_ ([p:id e:expr] ...) b:expr ...+)
-     #'(let ([p e] ...)
-         (cond
-          [(Bad? p)
-           (make-Bad #:bad-arg p #:for anti-do)] ...
-          [else
-           (let ([p (Good-v p)] ...)
-             (let ([r (begin-direct b ...)])
-               (if (data-invariant? r)
-                   (Good r)
-                   (make-Bad #:invariant-of-data r 
-                             #:broken-by anti-do))))]))]))
+     #'(let-Good-args 
+        ([p e] ...)
+        #:op anti-do
+        #:then
+        (let ([p (Good-v p)] ...)
+          (let ([r (begin-direct b ...)])
+            (if (data-invariant? r)
+                (Good r)
+                (make-Bad #:invariant-of-data r 
+                          #:broken-by anti-do)))))]))
 
 (define-syntax* (try stx)
   (define-syntax-class catch 

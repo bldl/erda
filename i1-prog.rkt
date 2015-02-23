@@ -8,6 +8,15 @@ Some test code written in the erda/rvm language.
 
 (require (for-racket [racket/base define #%datum #%app displayln]))
 
+(require (only-in racket/base = < > + - * /))
+
+(anti-do () 17)
+(anti-do ((x 1)) 18)
+(anti-do ((x (raise 'ugly))) 1 2)
+(anti-do ((x 1) (y 2)) (+ x y))
+(anti-do ((x 1) (y (raise 'horrible))) (+ x y))
+(anti-do ((x (raise 'great)) (y 2)) (+ x y))
+
 (let-racket-selected
  (define x 1)
  (displayln x))
@@ -23,8 +32,6 @@ Some test code written in the erda/rvm language.
 (if 1 2 3)
 
 (if #f 7 8)
-
-(require (only-in racket/base = < > + - * /))
 
 (not (not #f))
 (not #f)
