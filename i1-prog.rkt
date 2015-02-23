@@ -10,9 +10,10 @@ Some test code written in the erda/rvm language.
 
 (require (only-in racket/base = < > + - * /))
 
-(/ 7 3)
-(/ (raise 'bad) 3)
-(/ 7 (raise 'bad))
+(+ 7 3)
+(+ (raise 'bad) 3)
+(+ 7 (raise 'bad))
+
 (anti-do () 17)
 (anti-do ((x 1)) 18)
 (anti-do ((x (raise 'ugly))) 1 2)
@@ -28,6 +29,14 @@ Some test code written in the erda/rvm language.
 (+-equal (raise 'bad) 7)
 (+-equal 7 (raise 'bad))
 (+-equal 7 8)
+
+(declare (/ x y) 
+  #:alert ([div-by-0 pre-when (= y 0)]))
+
+(/ 27 7)
+(/ (raise 'bad) 7)
+(/ 27 (raise 'bad))
+(/ 27 0)
 
 (let-racket-selected
  (define x 1)
@@ -52,9 +61,6 @@ Some test code written in the erda/rvm language.
 
 (define y 7)
 (+ y 3)
-
-(declare (/ x y) 
-  #:alert ([div-by-0 pre-when (= y 0)]))
 
 ;(declarations-for x y /)
 

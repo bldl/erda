@@ -401,11 +401,11 @@ The RVM language, without the reader and the standard library.
                 [post-checked-r post-checked-r-stx])
     (cond-or-fail
      [(memq 'primitive modifs)
-      #'(let ([p a] ...)
+      #'(let-Good-args 
+         ([p a] ...) #:op f
+         #:then
           (cond 
            [pre-check => (lambda (x) x)] ...
-           [(Bad? p)
-            (make-Bad #:bad-arg p #:for f)] ...
            [else
             (let ([r (with-handlers (exc-clause ...)
                        (#%plain-app f (Good-v p) ...))])
