@@ -90,6 +90,16 @@ The RVM language, without the reader and the standard library.
     [(_ #:exception obj:expr #:from op:id)
      #'(Bad the-Nothing (GotException-alert obj) #'op #f)]))
 
+(define-syntax let-Good-args
+  (syntax-rules ()
+    [(_ () #:op op-id #:then then ...)
+     (let () then ...)]
+    [(_ ([p e] . rest) #:op op-id #:then then ...)
+     (let ([p e])
+       (if (Bad? p)
+           (make-Bad #:bad-arg p #:for op-id)
+           (let-Good-args rest #:op op-id #:then then ...)))]))
+
 (define (monadic-not v)
   (cond-or-fail
    ((Good? v) (Good (not (Good-v v))))
@@ -315,17 +325,15 @@ The RVM language, without the reader and the standard library.
   (with-syntax ([f f-stx]
                 [(a ...) arg-lst]
                 [(p ...) param-lst])
-    #'(let ([p a] ...)
-        (cond 
-         [(Bad? p)
-          (make-Bad #:bad-arg p #:for f)] ...
-         [else
-          (let ([r (#%plain-app f (Good-v p) ...)])
-            (cond
-             ((data-invariant? r)
-              (Good r))
-             (else
-              (make-Bad #:invariant-of-data r #:broken-by f))))]))))
+    #'(let-Good-args
+       ([p a] ...) #:op f
+       #:then
+       (let ([r (#%plain-app f (Good-v p) ...)])
+         (cond
+          ((data-invariant? r)
+           (Good r))
+          (else
+           (make-Bad #:invariant-of-data r #:broken-by f)))))))
   
 (define-for-syntax (mk-AlertingFunction-app info stx f-stx args-stx)
   (define arg-lst (syntax->list args-stx))
@@ -461,16 +469,6 @@ The RVM language, without the reader and the standard library.
 
 (define-my-syntax my-app monadic-app #%app)
 
-(define-syntax let-Good-args
-  (syntax-rules ()
-    [(_ () #:op op-id #:then then ...)
-     (let () then ...)]
-    [(_ ([p e] . rest) #:op op-id #:then then ...)
-     (let ([p e])
-       (if (Bad? p)
-           (make-Bad #:bad-arg p #:for op-id)
-           (let-Good-args rest #:op op-id #:then then ...)))]))
-
 ;; The opposite of a `do` in Haskell. The `b ...` expressions deal in
 ;; bare values. The "free variables" and their values should be given
 ;; as `[p e] ...` for unwrapping.
@@ -478,8 +476,7 @@ The RVM language, without the reader and the standard library.
   (syntax-parse stx
     [(_ ([p:id e:expr] ...) b:expr ...+)
      #'(let-Good-args 
-        ([p e] ...)
-        #:op anti-do
+        ([p e] ...) #:op anti-do
         #:then
         (let ([p (Good-v p)] ...)
           (let ([r (begin-direct b ...)])

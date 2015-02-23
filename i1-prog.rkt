@@ -10,6 +10,9 @@ Some test code written in the erda/rvm language.
 
 (require (only-in racket/base = < > + - * /))
 
+(/ 7 3)
+(/ (raise 'bad) 3)
+(/ 7 (raise 'bad))
 (anti-do () 17)
 (anti-do ((x 1)) 18)
 (anti-do ((x (raise 'ugly))) 1 2)
