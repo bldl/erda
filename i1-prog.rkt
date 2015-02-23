@@ -20,6 +20,15 @@ Some test code written in the erda/rvm language.
 (anti-do ((x 1) (y (raise 'horrible))) (+ x y))
 (anti-do ((x (raise 'great)) (y 2)) (+ x y))
 
+(define (+-equal x y)
+  #:alert ([not-equal pre-unless (= x y)])
+  (+ x y))
+
+(+-equal 7 7)
+(+-equal (raise 'bad) 7)
+(+-equal 7 (raise 'bad))
+(+-equal 7 8)
+
 (let-racket-selected
  (define x 1)
  (displayln x))

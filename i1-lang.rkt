@@ -400,7 +400,7 @@ The RVM language, without the reader and the standard library.
                   throw-lst)]
                 [post-checked-r post-checked-r-stx])
     (cond-or-fail
-     ((memq 'primitive modifs)
+     [(memq 'primitive modifs)
       #'(let ([p a] ...)
           (cond 
            [pre-check => (lambda (x) x)] ...
@@ -416,13 +416,30 @@ The RVM language, without the reader and the standard library.
                 (make-Bad #:invariant-of-data r #:broken-by f))
                (else
                 (let ((r (Good r)))
-                  post-checked-r))))])))
-     ((memq 'regular modifs)
+                  post-checked-r))))]))]
+     [(memq 'regular modifs)
+      #'(let-Good-args 
+         ([p a] ...) #:op f
+         #:then
+         (cond 
+          [pre-check => (lambda (x) x)] ...
+          [else
+           (let ([r (with-handlers (exc-clause ...)
+                      (#%plain-app f p ...))])
+             (cond
+              ((GotException? r)
+               (make-Bad #:exception r #:from f))
+              ((Bad? r)
+               r)
+              (else
+               (define v (Good-v r))
+               (if (data-invariant? v)
+                   post-checked-r
+                   (make-Bad #:invariant-of-data r #:broken-by f)))))]))]
+     [(memq 'handler modifs)
       #'(let ([p a] ...)
           (cond 
            [pre-check => (lambda (x) x)] ...
-           [(Bad? p)
-            (make-Bad #:bad-arg p #:for f)] ...
            [else
             (let ([r (with-handlers (exc-clause ...)
                        (#%plain-app f p ...))])
@@ -435,24 +452,7 @@ The RVM language, without the reader and the standard library.
                 (define v (Good-v r))
                 (if (data-invariant? v)
                     post-checked-r
-                    (make-Bad #:invariant-of-data r #:broken-by f)))))])))
-     ((memq 'handler modifs)
-      #'(let ([p a] ...)
-          (cond 
-           [pre-check => (lambda (x) x)] ...
-           [else
-            (let ([r (with-handlers (exc-clause ...)
-                       (#%plain-app f p ...))])
-              (cond
-               ((GotException? r)
-                (make-Bad #:exception r #:from f))
-               ((Bad? r)
-                r)
-               (else
-                (define v (Good-v r))
-                (if (data-invariant? v)
-                    post-checked-r
-                    (make-Bad #:invariant-of-data v #:broken-by f)))))]))))))
+                    (make-Bad #:invariant-of-data v #:broken-by f)))))]))])))
 
 (define-syntax (monadic-app stx)
   (syntax-parse stx
