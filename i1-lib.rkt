@@ -55,18 +55,19 @@ primitives.
 
 (define* (raise x)
   #:alert ([bad-arg pre-unless (alert-name? x)])
-  (rapp Bad the-Nothing (rapp Good-v x) 
-        (r.quote-syntax raise) (bare . #f)))
+  (bad-condition #:original (rapp Good-v x) (r.quote-syntax raise)))
 
 (define* (raise-with-value x v)
   #:alert ([bad-arg pre-unless (alert-name? x)])
-  (rapp Bad (rapp Good-v v) (rapp Good-v x) 
-        (r.quote-syntax raise-with-value) (bare . #f)))
+  (bad-condition #:original (rapp Good-v x)
+                 (r.quote-syntax raise-with-value)
+                 #:value v))
 
 (define* (raise-with-cause x wv) #:handler
   #:alert ([bad-arg pre-unless (and (alert-name? x) (bad-result? wv))])
-  (rapp Bad the-Nothing (rapp Good-v x) 
-        (r.quote-syntax raise-with-cause) wv))
+  (bad-condition #:original (rapp Good-v x)
+            (r.quote-syntax raise-with-cause)
+            #:cause wv))
 
 ;; Where possible, recovers from `v` being a bad value by turning it
 ;; into a good value.

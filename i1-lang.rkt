@@ -75,20 +75,11 @@ The RVM language, without the reader and the standard library.
 
 (define-my-syntax my-quote monadic-quote quote)
 
+;; The `alert` field contains an alert name (a symbol).
 (struct GotException (alert))
 
-(define-syntax (make-Bad stx)
-  (syntax-parse stx
-    [(_ name:expr) 
-     #'(Bad the-Nothing name #f #f)]
-    [(_ name:expr #:cause-result result:expr)
-     #'(Bad the-Nothing name #f result)]
-    [(_ #:invariant-of-data bare-v:expr #:broken-by op:id)
-     #'(Bad bare-v 'broken-DI #'op #f)]
-    [(_ #:bad-arg arg:id #:for op:id)
-     #'(Bad the-Nothing 'bad-arg #'op arg)]
-    [(_ #:exception obj:expr #:from op:id)
-     #'(Bad the-Nothing (GotException-alert obj) #'op #f)]))
+(define-syntax-rule (make-Bad-from-exception got #:op op)
+  (bad-condition #:exception-alert (GotException-alert got) #'op))
 
 (define-syntax let-Good-args
   (syntax-rules ()
@@ -97,13 +88,13 @@ The RVM language, without the reader and the standard library.
     [(_ ([p e] . rest) #:op op-id #:then then ...)
      (let ([p e])
        (if (Bad? p)
-           (make-Bad #:bad-arg p #:for op-id)
+           (bad-condition #:bad-arg p #'op-id)
            (let-Good-args rest #:op op-id #:then then ...)))]))
 
 (define (monadic-not v)
   (cond-or-fail
    ((Good? v) (Good (not (Good-v v))))
-   ((Bad? v) (make-Bad #:bad-arg v #:for monadic-not))))
+   ((Bad? v) (bad-condition #:bad-arg v #'monadic-not))))
 
 ;; We use this internally (only), to avoid (my-app not v).
 (define-my-syntax my-not monadic-not not)
@@ -113,7 +104,7 @@ The RVM language, without the reader and the standard library.
     ((_ c:expr t:expr e:expr)
      #'(let ([v c])
          (if (Bad? v)
-             (make-Bad #:bad-arg v #:for monadic-if)
+             (bad-condition #:bad-arg v #'monadic-if)
              (if (Good-v v) t e))))))
 
 (define-my-syntax my-if monadic-if if)
@@ -301,23 +292,32 @@ The RVM language, without the reader and the standard library.
        (newline))
      #'(begin)]))
 
+;; Produces a Bad value if a precondition does not hold (or its
+;; checking fails). Otherwise returns #f. The `f-stx` identifier names
+;; the operation, the `name` symbol specifies an alert name for the
+;; precondition, where as `v` is the result of the precondition
+;; expression (negated as necessary, so that a true value indicates
+;; that the condition does not hold).
 (define (maybe-get-pre-failure f-stx name v)
   (cond
-   ((Bad? v) (Bad the-Nothing 'precond-check-fail f-stx v))
-   (else
+   [(Bad? v) (bad-condition #:bad-precond v f-stx)]
+   [else
     (define gv (Good-v v))
     (unless (boolean? gv)
       (error 'maybe-get-pre-failure "expected boolean, got ~s" gv))
-    (and gv (Bad the-Nothing name f-stx #f)))))
+    (and gv (bad-condition #:precond-alert name f-stx))]))
 
+;; As for `maybe-get-pre-failure`, but concerns a postcondition, and
+;; the additional argument `r` is a wrapped good result for the
+;; operation.
 (define (maybe-get-post-failure f-stx r name v)
   (cond
-   ((Bad? v) (Bad the-Nothing 'postcond-check-fail f-stx v))
-   (else
+   [(Bad? v) (bad-condition #:bad-postcond v f-stx r)]
+   [else
     (define gv (Good-v v))
     (unless (boolean? gv)
       (error 'maybe-get-post-failure "expected boolean, got ~s" gv))
-    (and gv (Bad (Good-v r) name f-stx #f)))))
+    (and gv (bad-condition #:postcond-alert name f-stx r))]))
 
 (define-for-syntax (mk-UndeclaredFunction-app stx f-stx args-stx)
   (define arg-lst (syntax->list args-stx))
@@ -333,7 +333,7 @@ The RVM language, without the reader and the standard library.
           ((data-invariant? r)
            (Good r))
           (else
-           (make-Bad #:invariant-of-data r #:broken-by f)))))))
+           (bad-condition #:data-invariant r #'f)))))))
   
 (define-for-syntax (mk-AlertingFunction-app info stx f-stx args-stx)
   (define arg-lst (syntax->list args-stx))
@@ -385,7 +385,7 @@ The RVM language, without the reader and the standard library.
                 [(p ...) param-lst]
                 [(pre-check ...) 
                  (map
-                  (lambda (pre) 
+                  (lambda (pre) ;; of PreCond
                     #`(maybe-get-pre-failure
                        #'#,f-stx
                        '#,(AlertSpec-alert-name pre)
@@ -411,9 +411,9 @@ The RVM language, without the reader and the standard library.
                        (#%plain-app f (Good-v p) ...))])
               (cond
                ((GotException? r)
-                (make-Bad #:exception r #:from f))
+                (make-Bad-from-exception r #:op f))
                ((not (data-invariant? r))
-                (make-Bad #:invariant-of-data r #:broken-by f))
+                (bad-condition #:data-invariant r #'f))
                (else
                 (let ((r (Good r)))
                   post-checked-r))))]))]
@@ -428,14 +428,14 @@ The RVM language, without the reader and the standard library.
                       (#%plain-app f p ...))])
              (cond
               ((GotException? r)
-               (make-Bad #:exception r #:from f))
+               (make-Bad-from-exception r #:op f))
               ((Bad? r)
                r)
               (else
                (define v (Good-v r))
                (if (data-invariant? v)
                    post-checked-r
-                   (make-Bad #:invariant-of-data r #:broken-by f)))))]))]
+                   (bad-condition #:data-invariant v #'f)))))]))]
      [(memq 'handler modifs)
       #'(let ([p a] ...)
           (cond 
@@ -445,14 +445,14 @@ The RVM language, without the reader and the standard library.
                        (#%plain-app f p ...))])
               (cond
                ((GotException? r)
-                (make-Bad #:exception r #:from f))
+                (make-Bad-from-exception r #:op f))
                ((Bad? r)
                 r)
                (else
                 (define v (Good-v r))
                 (if (data-invariant? v)
                     post-checked-r
-                    (make-Bad #:invariant-of-data v #:broken-by f)))))]))])))
+                    (bad-condition #:data-invariant v #'f)))))]))])))
 
 (define-syntax (monadic-app stx)
   (syntax-parse stx
@@ -482,8 +482,7 @@ The RVM language, without the reader and the standard library.
           (let ([r (begin-direct b ...)])
             (if (data-invariant? r)
                 (Good r)
-                (make-Bad #:invariant-of-data r 
-                          #:broken-by anti-do)))))]))
+                (bad-condition #:data-invariant r #'anti-do)))))]))
 
 (define-syntax* (try stx)
   (define-syntax-class catch 
