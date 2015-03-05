@@ -101,11 +101,10 @@ The RVM language, without the reader and the standard library.
 
 (define-syntax (monadic-if stx)
   (syntax-parse stx
-    ((_ c:expr t:expr e:expr)
-     #'(let ([v c])
-         (if (Bad? v)
-             (bad-condition #:bad-arg v #'monadic-if)
-             (if (Good-v v) t e))))))
+    [(_ c:expr t:expr e:expr)
+     #'(let-Good-args 
+        ([v c]) #:op #'monadic-if
+        #:then (if (Good-v v) t e))]))
 
 (define-my-syntax my-if monadic-if if)
 
@@ -333,7 +332,7 @@ The RVM language, without the reader and the standard library.
           ((data-invariant? r)
            (Good r))
           (else
-           (bad-condition #:data-invariant r #'f)))))))
+           (bad-condition #:data-invariant (Good r) #'f)))))))
   
 (define-for-syntax (mk-AlertingFunction-app info stx f-stx args-stx)
   (define arg-lst (syntax->list args-stx))
@@ -413,7 +412,7 @@ The RVM language, without the reader and the standard library.
                ((GotException? r)
                 (make-Bad-from-exception r #:op f))
                ((not (data-invariant? r))
-                (bad-condition #:data-invariant r #'f))
+                (bad-condition #:data-invariant (Good r) #'f))
                (else
                 (let ((r (Good r)))
                   post-checked-r))))]))]
@@ -435,7 +434,7 @@ The RVM language, without the reader and the standard library.
                (define v (Good-v r))
                (if (data-invariant? v)
                    post-checked-r
-                   (bad-condition #:data-invariant v #'f)))))]))]
+                   (bad-condition #:data-invariant r #'f)))))]))]
      [(memq 'handler modifs)
       #'(let ([p a] ...)
           (cond 
@@ -446,13 +445,13 @@ The RVM language, without the reader and the standard library.
               (cond
                ((GotException? r)
                 (make-Bad-from-exception r #:op f))
-               ((Bad? r)
-                r)
+               ((and (Good? r) (not (data-invariant? (Good-v r))))
+                ;; Note that DI's do not hold for Bad values.
+                (bad-condition #:data-invariant r #'f))
                (else
-                (define v (Good-v r))
-                (if (data-invariant? v)
-                    post-checked-r
-                    (bad-condition #:data-invariant v #'f)))))]))])))
+                ;; Note that any predicates used here really should be
+                ;; #:handler's also.
+                post-checked-r)))]))])))
 
 (define-syntax (monadic-app stx)
   (syntax-parse stx
@@ -482,7 +481,7 @@ The RVM language, without the reader and the standard library.
           (let ([r (begin-direct b ...)])
             (if (data-invariant? r)
                 (Good r)
-                (bad-condition #:data-invariant r #'anti-do)))))]))
+                (bad-condition #:data-invariant (Good r) #'anti-do)))))]))
 
 (define-syntax* (try stx)
   (define-syntax-class catch 

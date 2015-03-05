@@ -18,11 +18,7 @@ A language implementation internal API.
   (data-invariant? DI)
   #:defaults ([(lambda (x) #t) (define (data-invariant? dat) #t)]))
 
-;; As #f is also a valid "bare" value, we use `Nothing` to indicate
-;; non-existence of a value.
-(singleton-struct* Nothing (the-Nothing) () #:transparent)
-
-;; Wrapped values are of type `Result`. A value `v` if of any type,
+;; Wrapped values are of type `Result`. A value `v` is of any type,
 ;; but it must not be wrapped.
 (abstract-struct* Result () #:transparent)
 (concrete-struct* Good Result (v) #:transparent)
@@ -32,8 +28,8 @@ A language implementation internal API.
   (define op (Bad-op v))
   (define cause (Bad-cause v))
   (fprintf out "~a" (Bad-name v))
-  (unless (Nothing? val)
-    (fprintf out "«~s»" val))
+  (when val
+    (fprintf out "«~s»" (if (Good? val) (Good-v val) val)))
   (when op
     (fprintf out "[~a]" (syntax-e op)))
   (cond
@@ -44,16 +40,19 @@ A language implementation internal API.
      (lambda (cause)
        (fprintf out "⇐~s" cause))]))
 
-;; A bad value `bad-v` is any unwrapped value or Nothing, a `name` is
-;; an alert name symbol, `op` is an operation identifier or #f, `arg`
-;; is any `Bad` argument (or #f) that prevented evaluation of
-;; operation `op`, and `cause` is any other `Bad`ness that caused the
-;; error (or #f).
+;; A bad value `bad-v` is any wrapped value or #f, a `name` is an
+;; alert name symbol, `op` is an operation identifier or #f, `arg` is
+;; any `Bad` argument (or #f) that prevented evaluation of operation
+;; `op`, and `cause` is any other `Bad`ness that caused the error (or
+;; #f).
 (struct Bad Result (bad-v name op arg cause)
   #:transparent
   #:methods gen:custom-write
   [(define write-proc Bad-write)])
 (provide (except-out (struct-out Bad) Bad))
+
+(define* (Bad-set-bad-v bad v)
+  (struct-copy Bad bad [bad-v v]))
 
 (define-syntax-rule (make-Bad-or-handle bad-v name op arg cause)
   (Bad bad-v name op arg cause))
@@ -63,65 +62,68 @@ A language implementation internal API.
 (define-syntax* bad-condition
   (syntax-rules ()
     [(_ #:bad-arg arg op)
-     (make-Bad-or-handle the-Nothing 'bad-arg op arg #f)]
-    [(_ #:data-invariant bare-v op) ;; FIXME should we take wrapped values?
-     (make-Bad-or-handle bare-v 'broken-DI op #f #f)]
+     (make-Bad-or-handle #f 'bad-arg op arg #f)]
+    [(_ #:data-invariant v op)
+     (make-Bad-or-handle v 'broken-DI op #f #f)]
     [(_ #:original name op)
-     (make-Bad-or-handle the-Nothing name op #f #f)]
+     (make-Bad-or-handle #f name op #f #f)]
     [(_ #:original name op #:value v)
-     (make-Bad-or-handle (Good-v v) name op #f #f)]
+     (make-Bad-or-handle v name op #f #f)]
     [(_ #:original name op #:cause cause)
-     (make-Bad-or-handle the-Nothing name op #f cause)]
+     (make-Bad-or-handle #f name op #f cause)]
     [(_ #:precond-alert name op)
-     (make-Bad-or-handle the-Nothing name op #f #f)]
-    [(_ #:postcond-alert name op v) ;; FIXME a handler's precondition could also fail, on a bad result, and thus we should probably be storing wrapped values (or have them be #f)
-     (make-Bad-or-handle (Good-v v) name op #f #f)]
+     (make-Bad-or-handle #f name op #f #f)]
+    [(_ #:postcond-alert name op v)
+     (make-Bad-or-handle v name op #f #f)]
     [(_ #:bad-precond cause op)
-     (make-Bad-or-handle the-Nothing 'bad-precond op #f cause)]
-    [(_ #:bad-postcond cause op v) ;; FIXME a handler's precondition could also fail, on a bad result, and thus we should probably be storing wrapped values (or have them be #f)
-     (make-Bad-or-handle (Good-v v) 'bad-postcond op #f cause)]
+     (make-Bad-or-handle #f 'bad-precond op #f cause)]
+    [(_ #:bad-postcond cause op v)
+     (make-Bad-or-handle v 'bad-postcond op #f cause)]
     [(_ #:exception-alert name op)
-     (make-Bad-or-handle the-Nothing name op #f #f)]
+     (make-Bad-or-handle #f name op #f #f)]
     ))
 
 ;; Recursively looks for a value from the passed `Bad` value `x`,
-;; traversing through any `arg` chain to find the bad value of the
-;; innermost subexpression that failed or referenced a bad variable.
-;; Calls `fail-thunk` if no value is found.
-(define (Bad-any-value x [fail-thunk
-                          (lambda () (raise-argument-error
-                                 'Bad-any-value
-                                 "Bad? with a value"
-                                 x))])
+;; traversing through any `arg` chain, returning the first available
+;; (wrapped) `bad-v` value. Otherwise returns #f, or as specified by
+;; `fail-thunk`.
+(define (Bad-any-value x [fail-thunk (lambda () #f)])
   (let loop ([x x])
     (define v (Bad-bad-v x))
     (cond
-     [(not (Nothing? v)) v]
+     [v v]
      [(Bad-arg x) => loop]
      [else (fail-thunk)])))
 
 (define* (Result-has-any-value? x)
   (cond
    ((Good? x) #t)
-   ((Bad? x) (not (Nothing? (Bad-any-value x (lambda () the-Nothing)))))
-   (else #f)))
+   ((Bad? x) (and (Bad-any-value x) #t))
+   (else (raise-argument-error
+          'Result-has-any-value? "Result?" x))))
 
 (define* (Result-any-value x)
-  (cond-or-fail
-   ((Good? x) (Good-v x))
-   ((Bad? x) (Bad-any-value x))))
+  (cond
+   ((Good? x) x)
+   ((and (Bad? x) (Bad-any-value x)) => (lambda (v) v))
+   (else (raise-argument-error
+          'Result-any-value
+          "(and/c Result? Result-has-any-value?)" x))))
 
 (define* (Result-has-immediate-value? x)
   (cond
    ((Good? x) #t)
-   ((Bad? x) (not (Nothing? (Bad-bad-v x))))
-   (else #f)))
+   ((Bad? x) (and (Bad-bad-v x) #t))
+   (else (raise-argument-error
+          'Result-has-immediate-value? "Result?" x))))
 
 (define* (Result-immediate-value x)
   (match x
-    [(Good v) v]
-    [(? Bad? (app Bad-bad-v (? (negate Nothing?) v))) v]
-    ))
+    [(? Good?) x]
+    [(? Bad? (app Bad-bad-v (? values v))) v]
+    [_ (raise-argument-error
+        'Result-immediate-value
+        "(and/c Result? Result-has-immediate-value?)" x)]))
 
 (define (Bad-root-cause x)
   (let loop ((x x))

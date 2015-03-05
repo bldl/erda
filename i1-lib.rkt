@@ -40,7 +40,11 @@ primitives.
 
 (define* (value-of-result x) #:handler 
   #:alert ([bad-arg pre-unless (result-has-value? x)])
-  (rapp Good (rapp Result-immediate-value x)))
+  (rapp Result-immediate-value x))
+
+(define* (set-bad-result-value x v) #:handler
+  #:alert ([bad-arg pre-unless (bad-result? x)])
+  (rapp Bad-set-bad-v x v))
 
 (define* (alert-name? x)
   (rapp Good (rapp symbol? (rapp Good-v x))))

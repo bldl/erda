@@ -7,8 +7,46 @@ Some test code written in the erda/rvm language.
 |#
 
 (require (for-racket [racket/base define #%datum #%app displayln]))
+(require (only-in racket/base = < > + - * / add1 sub1))
 
-(require (only-in racket/base = < > + - * /))
+(define (anything-but-Good-five? x) #:handler
+  (not (and (good-result? x) (= x 5))))
+
+(anything-but-Good-five? 0)
+(anything-but-Good-five? 5)
+(anything-but-Good-five? (raise 'bad))
+
+(define (Bad-five? x) #:handler
+  (and (bad-result? x) (result-has-value? x)
+       (= (value-of-result x) 5)))
+
+(Bad-five? 7)
+(Bad-five? 5)
+(Bad-five? (raise 'bad))
+(Bad-five? (raise-with-value 'bad 5))
+
+88
+(result-has-value? 88)
+(result-has-value? (raise-with-value 'bad 89))
+(result-has-value? (raise 'bad))
+
+(define (forced-add1 x) #:handler
+  #:alert ([no-good pre-unless (or (good-result? x)
+                                   (and (result-has-value? x)
+                                        (good-result?
+                                         (value-of-result x))))]
+           [pre-five pre-when (Bad-five? x)]
+           [post-five post-when (Bad-five? value)])
+  (if (good-result? x) 
+      (add1 x)
+      (set-bad-result-value x (add1 (value-of-result x)))))
+
+(forced-add1 77)
+(forced-add1 5)
+(forced-add1 (raise 'bad))
+(forced-add1 (raise-with-value 'bad 90))
+(forced-add1 (raise-with-value 'bad 5))
+(forced-add1 (raise-with-value 'bad 4))
 
 (+ 7 3)
 (+ (raise 'bad) 3)
@@ -186,3 +224,7 @@ Some test code written in the erda/rvm language.
 (factorial -4)
 (factorial 0)
 (factorial 6)
+
+;; Cannot embed a Bad `bad-v` value like this since `raise-with-value`
+;; cannot take it, as it is not a #:handler.
+(raise-with-value 'bad-with-bad-value (raise 'another-bad))
