@@ -597,10 +597,12 @@ The RVM language, without the reader and the standard library.
                           action ...]))])
       (define r
         #'(lambda (op-id bad)
-            (cond
-              [(Good? bad) bad]
-              cond-clause ...
-              [else bad])))
+            (syntax-parameterize ([value
+                                   (make-rename-transformer #'bad)])
+              (cond
+                [(Good? bad) bad]
+                cond-clause ...
+                [else bad]))))
       ;;(pretty-print (syntax->datum r))
       r))
   
