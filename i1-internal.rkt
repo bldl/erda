@@ -6,9 +6,10 @@ A language implementation internal API.
 
 |#
 
-(require racket/function racket/match
+(require racket/function racket/match racket/stxparam
          "util.rkt"
-         (for-syntax racket/base syntax/parse))
+         (for-syntax racket/base racket/list racket/pretty
+                     racket/syntax syntax/parse "util.rkt"))
 
 ;; Data invariant predicate for "bare" data values. Always holds for
 ;; all data types that do not explicitly provide an implementation of
@@ -54,33 +55,30 @@ A language implementation internal API.
 (define* (Bad-set-bad-v bad v)
   (struct-copy Bad bad [bad-v v]))
 
-(define-syntax-rule (make-Bad-or-handle bad-v name op arg cause)
-  (Bad bad-v name op arg cause))
-
 ;; All error conditions are reported through this macro, providing as
 ;; much information about the nature of the error as feasible.
 (define-syntax* bad-condition
   (syntax-rules ()
     [(_ #:bad-arg arg op)
-     (make-Bad-or-handle #f 'bad-arg op arg #f)]
+     (Bad #f 'bad-arg op arg #f)]
     [(_ #:data-invariant v op)
-     (make-Bad-or-handle v 'broken-DI op #f #f)]
+     (Bad v 'broken-DI op #f #f)]
     [(_ #:original name op)
-     (make-Bad-or-handle #f name op #f #f)]
+     (Bad #f name op #f #f)]
     [(_ #:original name op #:value v)
-     (make-Bad-or-handle v name op #f #f)]
+     (Bad v name op #f #f)]
     [(_ #:original name op #:cause cause)
-     (make-Bad-or-handle #f name op #f cause)]
+     (Bad #f name op #f cause)]
     [(_ #:precond-alert name op)
-     (make-Bad-or-handle #f name op #f #f)]
+     (Bad #f name op #f #f)]
     [(_ #:postcond-alert name op v)
-     (make-Bad-or-handle v name op #f #f)]
+     (Bad v name op #f #f)]
     [(_ #:bad-precond cause op)
-     (make-Bad-or-handle #f 'bad-precond op #f cause)]
+     (Bad #f 'bad-precond op #f cause)]
     [(_ #:bad-postcond cause op v)
-     (make-Bad-or-handle v 'bad-postcond op #f cause)]
+     (Bad v 'bad-postcond op #f cause)]
     [(_ #:exception-alert name op)
-     (make-Bad-or-handle #f name op #f #f)]
+     (Bad #f name op #f #f)]
     ))
 
 ;; Recursively looks for a value from the passed `Bad` value `x`,

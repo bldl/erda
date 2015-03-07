@@ -75,12 +75,6 @@ The RVM language, without the reader and the standard library.
 
 (define-my-syntax my-quote monadic-quote quote)
 
-;; The `alert` field contains an alert name (a symbol).
-(struct GotException (alert))
-
-(define-syntax-rule (make-Bad-from-exception got #:op op)
-  (bad-condition #:exception-alert (GotException-alert got) #'op))
-
 (define-syntax let-Good-args
   (syntax-rules ()
     [(_ () #:op op-id #:then then ...)
@@ -137,6 +131,12 @@ The RVM language, without the reader and the standard library.
      #'(monadic-if c t (monadic-cond e ...))]))
 
 (define-my-syntax my-cond monadic-cond cond)
+
+;; The `alert` field contains an alert name (a symbol).
+(struct GotException (alert))
+
+(define-syntax-rule (make-Bad-from-exception got #:op op)
+  (bad-condition #:exception-alert (GotException-alert got) #'op))
 
 (begin-for-syntax
   ;; Metadata for a function.
@@ -453,18 +453,27 @@ The RVM language, without the reader and the standard library.
                 ;; #:handler's also.
                 post-checked-r)))]))])))
 
+(define-syntax-parameter on-alert-hook
+  (syntax-rules ()
+    ((_ _ e) e)))
+
 (define-syntax (monadic-app stx)
   (syntax-parse stx
     [(_ f:id a:expr ...)
      (define f-stx #'f)
      (define info (free-id-table-ref fun-meta-table f-stx #f))
-     (cond-or-fail
-      ((not info)
-       (mk-UndeclaredFunction-app stx f-stx #'(a ...)))
-      ((DirectFunction? info)
-       #'(#%app f a ...))
-      ((AlertingFunction? info)
-       (mk-AlertingFunction-app info stx f-stx #'(a ...))))]))
+     (cond
+       [(DirectFunction? info)
+        #'(#%app f a ...)]
+       [else
+        (with-syntax 
+          ([app-expr
+            (cond-or-fail
+             [(not info)
+              (mk-UndeclaredFunction-app stx f-stx #'(a ...))]
+             [(AlertingFunction? info)
+              (mk-AlertingFunction-app info stx f-stx #'(a ...))])])
+          #'(on-alert-hook f app-expr))])]))
 
 (define-my-syntax my-app monadic-app #%app)
 
@@ -537,3 +546,63 @@ The RVM language, without the reader and the standard library.
          (if (Bad? v)
              fail-e
              v))]))
+
+;;; 
+;;; on-alert
+;;;
+
+(define-for-syntax (as-syntax x)
+  (cond
+    ((syntax? x) #`(quote-syntax #,x))
+    ((list? x) #`(list #,@(map as-syntax x)))
+    (else (raise-argument-error
+           'as-syntax "(or/c syntax? list?)" x))))
+
+(define-syntax-parameter on-alert-lst '())
+
+(define-syntax* (on-alert stx)
+  (define-syntax-class clause
+    #:description "handler clause"
+    #:attributes (info)
+    (pattern
+     [(op:id ...) hnd:expr ...+]
+     #:attr info (list (syntax->list #'(op ...))
+                       (syntax->list #'(hnd ...)))))
+
+  ;; Produces syntax for an anonymous function which might do some
+  ;; context-sensitive recovery on a Bad input value.
+  (define (make-recover-lam lst)
+    ;;(printf "`on-alert` handlers: ~s~n" lst)
+    (with-syntax ([bad (generate-temporary 'bad)]
+                  [(cond-clause ...)
+                   (for/list ([spec lst])
+                     (with-syntax ([(decl-op ...) (first spec)]
+                                   [(action ...) (second spec)])
+                       #'[(or (free-identifier=? op-id #'decl-op) ...)
+                          action ...]))])
+      (define r
+        #'(lambda (op-id bad)
+            (cond
+              [(Good? bad) bad]
+              cond-clause ...
+              [else bad])))
+      ;;(pretty-print (syntax->datum r))
+      r))
+  
+  (syntax-parse stx
+    ((_ (c:clause ...) e:expr ...+)
+     (define lst (append
+                  (reverse (attribute c.info))
+                  (syntax-parameter-value #'on-alert-lst)))
+     (cond
+       ((null? lst)
+        #'(let () e ...))
+       (else
+        (with-syntax ((new-lst (as-syntax lst))
+                      (recover-lam (make-recover-lam lst)))
+          #'(let ((recover recover-lam))
+              (syntax-parameterize ((on-alert-lst new-lst)
+                                    (on-alert-hook
+                                     (syntax-rules ()
+                                       [(_ op v) (recover #'op v)])))
+                e ...))))))))

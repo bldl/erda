@@ -9,6 +9,13 @@ Some test code written in the erda/rvm language.
 (require (for-racket [racket/base define #%datum #%app displayln]))
 (require (only-in racket/base = < > + - * / add1 sub1))
 
+(define (f1) 
+  (raise 'f1-error))
+
+(on-alert ([(f1) 7]) (f1))
+(on-alert () 5 6)
+(on-alert () 5 (raise-with-value 'bad 6))
+
 (define (anything-but-Good-five? x) #:handler
   (not (and (good-result? x) (= x 5))))
 
