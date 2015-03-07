@@ -11,7 +11,8 @@ The RVM language, without the reader and the standard library.
          "util/provide-syntax.rkt" "util/racket-require.rkt"
          racket/bool racket/function racket/generic racket/list 
          racket/match racket/stxparam
-         (for-syntax racket/base racket/list racket/syntax
+         (for-syntax racket/base racket/function
+                     racket/list racket/syntax
                      syntax/id-table syntax/parse
                      "util.rkt"))
 
@@ -558,6 +559,20 @@ The RVM language, without the reader and the standard library.
     (else (raise-argument-error
            'as-syntax "(or/c syntax? list?)" x))))
 
+;; As an optimization, this macro only expands to a call to the
+;; recovery function `recover` where the operation ID `op-id` of the
+;; operation expression `op-e` is on the list of IDs `(can-id ...)`
+;; supported by the recovery function.
+(define-syntax (maybe-recover stx)
+  (syntax-parse stx
+    [(_ (can-id:id ...+) recover:id op-id:id op-e:expr)
+     (cond
+       [(ormap (curry free-identifier=? #'op-id)
+               (syntax->list #'(can-id ...)))
+        #'(recover #'op-id op-e)]
+       [else
+        #'op-e])]))
+
 (define-syntax-parameter on-alert-lst '())
 
 (define-syntax* (on-alert stx)
@@ -598,11 +613,15 @@ The RVM language, without the reader and the standard library.
        ((null? lst)
         #'(let () e ...))
        (else
-        (with-syntax ((new-lst (as-syntax lst))
-                      (recover-lam (make-recover-lam lst)))
-          #'(let ((recover recover-lam))
-              (syntax-parameterize ((on-alert-lst new-lst)
-                                    (on-alert-hook
+        (with-syntax ([new-lst (as-syntax lst)]
+                      [(can-id ...) (apply append (map first lst))]
+                      [recover-lam (make-recover-lam lst)])
+          #'(let ([recover recover-lam])
+              (syntax-parameterize ([on-alert-lst new-lst]
+                                    [on-alert-hook
                                      (syntax-rules ()
-                                       [(_ op v) (recover #'op v)])))
+                                       [(_ op-id op-e)
+                                        (maybe-recover 
+                                         (can-id ...) recover 
+                                         op-id op-e)])])
                 e ...))))))))
