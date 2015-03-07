@@ -363,6 +363,8 @@ The RVM language, without the reader and the standard library.
            pre-lst post-lst throw-lst))
         (values (generate-temporaries arg-lst) '() '() '())))
 
+  (define no-throws? (null? throw-lst))
+  
   (define post-checked-r-stx
     (if (null? post-lst)
         #'r
@@ -377,8 +379,8 @@ The RVM language, without the reader and the standard library.
           #'(syntax-parameterize ([value
                                    (make-rename-transformer #'r)])
               (cond
-               [post-check => (lambda (x) x)] ...
-               [else r])))))
+                [post-check => (lambda (x) x)] ...
+                [else r])))))
   
   (with-syntax ([f f-stx]
                 [(a ...) arg-lst]
@@ -395,68 +397,71 @@ The RVM language, without the reader and the standard library.
                  (map
                   (lambda (x) 
                     #`[#,(OnThrow-predicate-expr x)
-                       (lambda (exn) 
-                         (GotException '#,(AlertSpec-alert-name x)))])
+                        (lambda (exn) 
+                          (GotException '#,(AlertSpec-alert-name x)))])
                   throw-lst)]
+                [(exc-check ...)
+                 (if no-throws? 
+                     '()
+                     (list
+                      #`[(GotException? r)
+                         (make-Bad-from-exception r #:op #,f-stx)]))]
                 [post-checked-r post-checked-r-stx])
     (cond-or-fail
      [(memq 'primitive modifs)
       #'(let-Good-args 
          ([p a] ...) #:op f
          #:then
-          (cond 
+         (cond 
            [pre-check => (lambda (x) x)] ...
            [else
             (let ([r (with-handlers (exc-clause ...)
                        (#%plain-app f (Good-v p) ...))])
               (cond
-               ((GotException? r)
-                (make-Bad-from-exception r #:op f))
-               ((not (data-invariant? r))
-                (bad-condition #:data-invariant (Good r) #'f))
-               (else
-                (let ((r (Good r)))
-                  post-checked-r))))]))]
+                exc-check ...
+                ((not (data-invariant? r))
+                 (bad-condition #:data-invariant (Good r) #'f))
+                (else
+                 (let ((r (Good r)))
+                   post-checked-r))))]))]
      [(memq 'regular modifs)
       #'(let-Good-args 
          ([p a] ...) #:op f
          #:then
          (cond 
-          [pre-check => (lambda (x) x)] ...
-          [else
-           (let ([r (with-handlers (exc-clause ...)
-                      (#%plain-app f p ...))])
-             (cond
-              ((GotException? r)
-               (make-Bad-from-exception r #:op f))
-              ((Bad? r)
-               r)
-              (else
-               (define v (Good-v r))
-               (if (data-invariant? v)
-                   post-checked-r
-                   (bad-condition #:data-invariant r #'f)))))]))]
-     [(memq 'handler modifs)
-      #'(let ([p a] ...)
-          (cond 
            [pre-check => (lambda (x) x)] ...
            [else
             (let ([r (with-handlers (exc-clause ...)
                        (#%plain-app f p ...))])
               (cond
-               ((GotException? r)
-                (make-Bad-from-exception r #:op f))
-               ((and (Good? r) (not (data-invariant? (Good-v r))))
-                ;; Note that DI's do not hold for Bad values.
-                (bad-condition #:data-invariant r #'f))
-               (else
-                ;; Note that any predicates used here really should be
-                ;; #:handler's also.
-                post-checked-r)))]))])))
+                exc-check ...
+                ((Bad? r)
+                 r)
+                (else
+                 (define v (Good-v r))
+                 (if (data-invariant? v)
+                     post-checked-r
+                     (bad-condition #:data-invariant r #'f)))))]))]
+     [(memq 'handler modifs)
+      #'(let ([p a] ...)
+          (cond 
+            [pre-check => (lambda (x) x)] ...
+            [else
+             (let ([r (with-handlers (exc-clause ...)
+                        (#%plain-app f p ...))])
+               (cond
+                 exc-check ...
+                 ((and (Good? r) (not (data-invariant? (Good-v r))))
+                  ;; Note that DI's do not hold for Bad values.
+                  (bad-condition #:data-invariant r #'f))
+                 (else
+                  ;; Note that any predicates used here really should be
+                  ;; #:handler's also.
+                  post-checked-r)))]))])))
 
 (define-syntax-parameter on-alert-hook
   (syntax-rules ()
-    ((_ _ e) e)))
+    [(_ _ e) e]))
 
 (define-syntax (monadic-app stx)
   (syntax-parse stx

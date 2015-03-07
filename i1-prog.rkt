@@ -7,7 +7,18 @@ Some test code written in the erda/rvm language.
 |#
 
 (require (for-racket [racket/base define #%datum #%app displayln]))
-(require (only-in racket/base = < > + - * / add1 sub1))
+(require (only-in racket/base = < > + - * / add1 sub1
+                  exn:fail:contract:divide-by-zero?
+                  [/ throwing-/]))
+
+(declare (throwing-/ x y)
+  #:alert ([div-by-0 on-throw exn:fail:contract:divide-by-zero?]))
+
+(throwing-/ 7 8)
+(throwing-/ 7 0)
+
+(on-alert ([(throwing-/) 0])
+  (throwing-/ 9 0))
 
 (define (f1) 
   (raise 'f1-error))
