@@ -11,6 +11,34 @@ Some test code written in the erda/rvm language.
                   exn:fail:contract:divide-by-zero?
                   [/ throwing-/]))
 
+(define (f-1 c a b)
+  (block 
+   (#:let x b)
+   (#:when c #:let x a)
+   x))
+
+(define (f-2 c a b)
+  (if c a b))
+
+(define a-bad-v (raise 'bad))
+
+(f-1 1 22 3)
+(f-2 1 22 3)
+(f-1 #f 2 33)
+(f-2 #f 2 33)
+(f-1 a-bad-v 2 3)
+(f-2 a-bad-v 2 3)
+
+(if (raise 'bad) 1 2)
+
+(block 1)
+(block 1 2)
+(block (#:let x 7) x)
+(block (#:let x 1) (#:let x 2) x)
+(block (#:let x #t) (#:when x #:let x 17) x)
+(block (#:let x #f) (#:when x #:let x 18) x)
+(block (#:let x (raise 'bad)) (#:when x #:let x 19) x)
+
 (declare (throwing-/ x y)
   #:alert ([div-by-0 on-throw exn:fail:contract:divide-by-zero?]))
 

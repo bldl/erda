@@ -98,7 +98,7 @@ The RVM language, without the reader and the standard library.
   (syntax-parse stx
     [(_ c:expr t:expr e:expr)
      #'(let-Good-args 
-        ([v c]) #:op #'monadic-if
+        ([v c]) #:op monadic-if
         #:then (if (Good-v v) t e))]))
 
 (define-my-syntax my-if monadic-if if)
@@ -632,3 +632,23 @@ The RVM language, without the reader and the standard library.
                                          (can-id ...) recover 
                                          op-id op-e)])])
                 e ...))))))))
+
+;;; 
+;;; monadic block
+;;; 
+
+(define-syntax* block
+  (syntax-rules ()
+    [(_ e) 
+     e]
+    [(_ (#:let x v) . es)
+     (let ([x v])
+       (block . es))]
+    [(_ (#:when c #:let x v) . es)
+     (let ([x (my-if c v x)])
+       (if (Bad? x)
+           x
+           (block . es)))]
+    [(_ e . es)
+     (let () e (block . es))]
+    ))
