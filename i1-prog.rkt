@@ -11,6 +11,12 @@ Some test code written in the erda/rvm language.
                   exn:fail:contract:divide-by-zero?
                   [/ throwing-/]))
 
+(define (never-happy a b c)
+  #:alert ([unhappy post-when (= 0 0)])
+  a)
+
+(never-happy 1 2 3)
+
 (define (f-1 c a b)
   (block 
    (#:let x b)

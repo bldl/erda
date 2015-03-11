@@ -310,14 +310,14 @@ The RVM language, without the reader and the standard library.
 ;; As for `maybe-get-pre-failure`, but concerns a postcondition, and
 ;; the additional argument `r` is a wrapped good result for the
 ;; operation.
-(define (maybe-get-post-failure f-stx r name v)
+(define (maybe-get-post-failure f-stx r name v args)
   (cond
-   [(Bad? v) (bad-condition #:bad-postcond v f-stx r)]
+   [(Bad? v) (bad-condition #:bad-postcond v f-stx r args)]
    [else
     (define gv (Good-v v))
     (unless (boolean? gv)
       (error 'maybe-get-post-failure "expected boolean, got ~s" gv))
-    (and gv (bad-condition #:postcond-alert name f-stx r))]))
+    (and gv (bad-condition #:postcond-alert name f-stx r args))]))
 
 (define-for-syntax (mk-UndeclaredFunction-app stx f-stx args-stx)
   (define arg-lst (syntax->list args-stx))
@@ -370,22 +370,6 @@ The RVM language, without the reader and the standard library.
      [(a ...) arg-lst]
      [(p ...) param-lst]
      [r r-stx])
-    (define post-checked-r-stx
-      (if (null? post-lst)
-          r-stx
-          (with-syntax ([(post-check ...) 
-                         (map
-                          (lambda (post) 
-                            #`(maybe-get-post-failure
-                               #'f r
-                               '#,(AlertSpec-alert-name post)
-                               #,(PostCond-cond-expr post)))
-                          post-lst)])
-            #'(syntax-parameterize ([value
-                                     (make-rename-transformer #'r)]) 
-                (cond
-                  [post-check => (lambda (x) x)] ...
-                  [else r])))))
     (with-syntax
       ([(pre-check ...)
         (if (null? pre-lst)
@@ -413,7 +397,24 @@ The RVM language, without the reader and the standard library.
             (list
              #'[(GotException? r)
                 (make-Bad-from-exception r f (list p ...))]))]
-       [post-checked-r post-checked-r-stx])
+       [post-checked-r
+        (if (null? post-lst)
+            r-stx
+            (with-syntax*
+              ([args (generate-temporary 'args)]
+               [(get-fail ...)
+                (for/list ([post post-lst]) ;; of PostCond
+                  #`(maybe-get-post-failure
+                     #'f r
+                     '#,(AlertSpec-alert-name post)
+                     #,(PostCond-cond-expr post)
+                     args))])
+              #'(let ([args (list p ...)])
+                  (syntax-parameterize ([value
+                                         (make-rename-transformer #'r)])
+                    (cond
+                      [(or get-fail ...) => (lambda (x) x)]
+                      [else r])))))])
       (cond-or-fail
        [(memq 'primitive modifs)
         #'(let-Good-args 

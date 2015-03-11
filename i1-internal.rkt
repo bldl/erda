@@ -81,12 +81,12 @@ A language implementation internal API.
      (Bad #f name op #f cause #f)]
     [(_ #:precond-alert name op args)
      (Bad #f name op #f #f args)]
-    [(_ #:postcond-alert name op v)
-     (Bad v name op #f #f #f)]
+    [(_ #:postcond-alert name op v args)
+     (Bad v name op #f #f args)]
     [(_ #:bad-precond cause op args)
      (Bad #f 'bad-precond op #f cause args)]
-    [(_ #:bad-postcond cause op v)
-     (Bad v 'bad-postcond op #f cause #f)]
+    [(_ #:bad-postcond cause op v args)
+     (Bad v 'bad-postcond op #f cause args)]
     [(_ #:exception-alert name op args)
      (Bad #f name op #f #f args)]
     ))
