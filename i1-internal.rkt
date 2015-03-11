@@ -87,8 +87,8 @@ A language implementation internal API.
      (Bad #f 'bad-precond op #f cause args)]
     [(_ #:bad-postcond cause op v)
      (Bad v 'bad-postcond op #f cause #f)]
-    [(_ #:exception-alert name op)
-     (Bad #f name op #f #f #f)]
+    [(_ #:exception-alert name op args)
+     (Bad #f name op #f #f args)]
     ))
 
 ;; Recursively looks for a value from the passed `Bad` value `x`,

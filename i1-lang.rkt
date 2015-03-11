@@ -136,8 +136,8 @@ The RVM language, without the reader and the standard library.
 ;; The `alert` field contains an alert name (a symbol).
 (struct GotException (alert))
 
-(define-syntax-rule (make-Bad-from-exception got #:op op)
-  (bad-condition #:exception-alert (GotException-alert got) #'op))
+(define-syntax-rule (make-Bad-from-exception got op args)
+  (bad-condition #:exception-alert (GotException-alert got) #'op args))
 
 (begin-for-syntax
   ;; Metadata for a function.
@@ -392,7 +392,7 @@ The RVM language, without the reader and the standard library.
                           [(get-fail ...)
                            (for/list ([pre pre-lst]) ;; of PreCond
                              #`(maybe-get-pre-failure
-                                #'#,f-stx
+                                #'f
                                 '#,(AlertSpec-alert-name pre)
                                 #,(PreCond-cond-expr pre)
                                 args))])
@@ -409,8 +409,8 @@ The RVM language, without the reader and the standard library.
                   (if (null? throw-lst)
                       null
                       (list
-                       #`[(GotException? r)
-                          (make-Bad-from-exception r #:op #,f-stx)]))]
+                       #'[(GotException? r)
+                          (make-Bad-from-exception r f (list p ...))]))]
                  [post-checked-r post-checked-r-stx])
     (cond-or-fail
      [(memq 'primitive modifs)
