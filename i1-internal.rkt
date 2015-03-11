@@ -31,14 +31,16 @@ A language implementation internal API.
   (define val (Bad-bad-v v))
   (define op (Bad-op v))
   (define cause (Bad-cause v))
-  (fprintf out "~a" (Bad-name v))
+  (fprintf out "(Bad ~a" (Bad-name v))
   (when val
     (fprintf out "«~s»" (bare-Good val)))
   (when op
-    (fprintf out "[~a]" (syntax-e op))
+    (fprintf out " ~a" (syntax-e op))
     (let ((args (Bad-args v)))
       (when args
-        (fprintf out "~s" (map bare-Good args)))))
+        (for ((arg args))
+          (fprintf out " ~s" (bare-Good arg))))))
+  (fprintf out ")")
   (cond
     [(Bad-arg v) => 
      (lambda (arg)
