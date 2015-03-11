@@ -363,108 +363,110 @@ The RVM language, without the reader and the standard library.
            pre-lst post-lst throw-lst))
         (values (generate-temporaries arg-lst) '() '() '())))
 
-  (define post-checked-r-stx
-    (if (null? post-lst)
-        #'r
-        (with-syntax ([(post-check ...) 
-                       (map
-                        (lambda (post) 
-                          #`(maybe-get-post-failure
-                             #'#,f-stx r
-                             '#,(AlertSpec-alert-name post)
-                             #,(PostCond-cond-expr post)))
-                        post-lst)])
-          #'(syntax-parameterize ([value
-                                   (make-rename-transformer #'r)])
-              (cond
-                [post-check => (lambda (x) x)] ...
-                [else r])))))
-  
-  (with-syntax* ([f f-stx]
-                 [(a ...) arg-lst]
-                 [(p ...) param-lst]
-                 [(pre-check ...)
-                  (if (null? pre-lst)
-                      null
-                      (list
-                       (with-syntax*
-                         ([args (generate-temporary 'args)]
-                          [(get-fail ...)
-                           (for/list ([pre pre-lst]) ;; of PreCond
-                             #`(maybe-get-pre-failure
-                                #'f
-                                '#,(AlertSpec-alert-name pre)
-                                #,(PreCond-cond-expr pre)
-                                args))])
-                         #'[(let ([args (list p ...)])
-                              (or get-fail ...)) => (lambda (x) x)])))]
-                 [(exc-clause ...)
-                  (map
-                   (lambda (x) 
-                     #`[#,(OnThrow-predicate-expr x)
-                         (lambda (exn) 
-                           (GotException '#,(AlertSpec-alert-name x)))])
-                   throw-lst)]
-                 [(exc-check ...)
-                  (if (null? throw-lst)
-                      null
-                      (list
-                       #'[(GotException? r)
-                          (make-Bad-from-exception r f (list p ...))]))]
-                 [post-checked-r post-checked-r-stx])
-    (cond-or-fail
-     [(memq 'primitive modifs)
-      #'(let-Good-args 
-         ([p a] ...) #:op f
-         #:then
-         (cond 
-           pre-check ...
-           [else
-            (let ([r (with-handlers (exc-clause ...)
-                       (#%plain-app f (Good-v p) ...))])
-              (cond
-                exc-check ...
-                ((not (data-invariant? r))
-                 (bad-condition #:data-invariant 
-                                (Good r) #'f (list p ...)))
-                (else
-                 (let ((r (Good r)))
-                   post-checked-r))))]))]
-     [(memq 'regular modifs)
-      #'(let-Good-args 
-         ([p a] ...) #:op f
-         #:then
-         (cond 
-           pre-check ...
-           [else
-            (let ([r (with-handlers (exc-clause ...)
-                       (#%plain-app f p ...))])
-              (cond
-                exc-check ...
-                ((Bad? r)
-                 r)
-                (else
-                 (define v (Good-v r))
-                 (if (data-invariant? v)
-                     post-checked-r
-                     (bad-condition #:data-invariant 
-                                    r #'f (list p ...))))))]))]
-     [(memq 'handler modifs)
-      #'(let ([p a] ...)
-          (cond 
-            pre-check ...
-            [else
-             (let ([r (with-handlers (exc-clause ...)
-                        (#%plain-app f p ...))])
-               (cond
-                 exc-check ...
-                 [(and (Good? r) (not (data-invariant? (Good-v r))))
-                  ;; Note that DI's need not hold for Bad values.
-                  (bad-condition #:data-invariant r #'f (list p ...))]
-                 [else
-                  ;; Any predicates used in post-conditions really
-                  ;; should be #:handler's also.
-                  post-checked-r]))]))])))
+  (define r-stx (generate-temporary 'r))
+
+  (with-syntax
+    ([f f-stx]
+     [(a ...) arg-lst]
+     [(p ...) param-lst]
+     [r r-stx])
+    (define post-checked-r-stx
+      (if (null? post-lst)
+          r-stx
+          (with-syntax ([(post-check ...) 
+                         (map
+                          (lambda (post) 
+                            #`(maybe-get-post-failure
+                               #'f r
+                               '#,(AlertSpec-alert-name post)
+                               #,(PostCond-cond-expr post)))
+                          post-lst)])
+            #'(syntax-parameterize ([value
+                                     (make-rename-transformer #'r)]) 
+                (cond
+                  [post-check => (lambda (x) x)] ...
+                  [else r])))))
+    (with-syntax
+      ([(pre-check ...)
+        (if (null? pre-lst)
+            null
+            (list
+             (with-syntax*
+               ([args (generate-temporary 'args)]
+                [(get-fail ...)
+                 (for/list ([pre pre-lst]) ;; of PreCond
+                   #`(maybe-get-pre-failure
+                      #'f
+                      '#,(AlertSpec-alert-name pre)
+                      #,(PreCond-cond-expr pre)
+                      args))])
+               #'[(let ([args (list p ...)])
+                    (or get-fail ...)) => (lambda (x) x)])))]
+       [(exc-clause ...)
+        (for/list ((x throw-lst)) ;; of OnThrow
+          #`[#,(OnThrow-predicate-expr x)
+              (lambda (exn) 
+                (GotException '#,(AlertSpec-alert-name x)))])]
+       [(exc-check ...)
+        (if (null? throw-lst)
+            null
+            (list
+             #'[(GotException? r)
+                (make-Bad-from-exception r f (list p ...))]))]
+       [post-checked-r post-checked-r-stx])
+      (cond-or-fail
+       [(memq 'primitive modifs)
+        #'(let-Good-args 
+           ([p a] ...) #:op f
+           #:then
+           (cond 
+             pre-check ...
+             [else
+              (let ([r (with-handlers (exc-clause ...)
+                         (#%plain-app f (Good-v p) ...))])
+                (cond
+                  exc-check ...
+                  [(not (data-invariant? r))
+                   (bad-condition #:data-invariant 
+                                  (Good r) #'f (list p ...))]
+                  [else
+                   (let ([r (Good r)])
+                     post-checked-r)]))]))]
+       [(memq 'regular modifs)
+        #'(let-Good-args 
+           ([p a] ...) #:op f
+           #:then
+           (cond 
+             pre-check ...
+             [else
+              (let ([r (with-handlers (exc-clause ...)
+                         (#%plain-app f p ...))])
+                (cond
+                  exc-check ...
+                  [(Bad? r)
+                   r]
+                  [else
+                   (define v (Good-v r))
+                   (if (data-invariant? v)
+                       post-checked-r
+                       (bad-condition #:data-invariant 
+                                      r #'f (list p ...)))]))]))]
+       [(memq 'handler modifs)
+        #'(let ([p a] ...)
+            (cond 
+              pre-check ...
+              [else
+               (let ([r (with-handlers (exc-clause ...)
+                          (#%plain-app f p ...))])
+                 (cond
+                   exc-check ...
+                   [(and (Good? r) (not (data-invariant? (Good-v r))))
+                    ;; Note that DI's need not hold for Bad values.
+                    (bad-condition #:data-invariant r #'f (list p ...))]
+                   [else
+                    ;; Any predicates used in post-conditions really
+                    ;; should be #:handler's also.
+                    post-checked-r]))]))]))))
 
 (define-syntax-parameter on-alert-hook
   (syntax-rules ()
