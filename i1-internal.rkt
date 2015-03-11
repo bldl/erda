@@ -24,18 +24,21 @@ A language implementation internal API.
 (abstract-struct* Result () #:transparent)
 (concrete-struct* Good Result (v) #:transparent)
 
+(define (bare-Good val)
+  (if (Good? val) (Good-v val) val))
+
 (define (Bad-write v out mode)
   (define val (Bad-bad-v v))
   (define op (Bad-op v))
   (define cause (Bad-cause v))
   (fprintf out "~a" (Bad-name v))
   (when val
-    (fprintf out "«~s»" (if (Good? val) (Good-v val) val)))
+    (fprintf out "«~s»" (bare-Good val)))
   (when op
     (fprintf out "[~a]" (syntax-e op))
     (let ((args (Bad-args v)))
       (when args
-        (fprintf out "~s" args))))
+        (fprintf out "~s" (map bare-Good args)))))
   (cond
     [(Bad-arg v) => 
      (lambda (arg)
@@ -74,12 +77,12 @@ A language implementation internal API.
      (Bad v name op #f #f #f)]
     [(_ #:original name op #:cause cause)
      (Bad #f name op #f cause #f)]
-    [(_ #:precond-alert name op)
-     (Bad #f name op #f #f #f)]
+    [(_ #:precond-alert name op args)
+     (Bad #f name op #f #f args)]
     [(_ #:postcond-alert name op v)
      (Bad v name op #f #f #f)]
-    [(_ #:bad-precond cause op)
-     (Bad #f 'bad-precond op #f cause #f)]
+    [(_ #:bad-precond cause op args)
+     (Bad #f 'bad-precond op #f cause args)]
     [(_ #:bad-postcond cause op v)
      (Bad v 'bad-postcond op #f cause #f)]
     [(_ #:exception-alert name op)

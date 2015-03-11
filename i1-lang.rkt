@@ -298,14 +298,14 @@ The RVM language, without the reader and the standard library.
 ;; precondition, where as `v` is the result of the precondition
 ;; expression (negated as necessary, so that a true value indicates
 ;; that the condition does not hold).
-(define (maybe-get-pre-failure f-stx name v)
+(define (maybe-get-pre-failure f-stx name v args)
   (cond
-   [(Bad? v) (bad-condition #:bad-precond v f-stx)]
+   [(Bad? v) (bad-condition #:bad-precond v f-stx args)]
    [else
     (define gv (Good-v v))
     (unless (boolean? gv)
       (error 'maybe-get-pre-failure "expected boolean, got ~s" gv))
-    (and gv (bad-condition #:precond-alert name f-stx))]))
+    (and gv (bad-condition #:precond-alert name f-stx args))]))
 
 ;; As for `maybe-get-pre-failure`, but concerns a postcondition, and
 ;; the additional argument `r` is a wrapped good result for the
@@ -363,8 +363,6 @@ The RVM language, without the reader and the standard library.
            pre-lst post-lst throw-lst))
         (values (generate-temporaries arg-lst) '() '() '())))
 
-  (define no-throws? (null? throw-lst))
-  
   (define post-checked-r-stx
     (if (null? post-lst)
         #'r
@@ -382,38 +380,45 @@ The RVM language, without the reader and the standard library.
                 [post-check => (lambda (x) x)] ...
                 [else r])))))
   
-  (with-syntax ([f f-stx]
-                [(a ...) arg-lst]
-                [(p ...) param-lst]
-                [(pre-check ...) 
-                 (map
-                  (lambda (pre) ;; of PreCond
-                    #`(maybe-get-pre-failure
-                       #'#,f-stx
-                       '#,(AlertSpec-alert-name pre)
-                       #,(PreCond-cond-expr pre)))
-                  pre-lst)]
-                [(exc-clause ...)
-                 (map
-                  (lambda (x) 
-                    #`[#,(OnThrow-predicate-expr x)
-                        (lambda (exn) 
-                          (GotException '#,(AlertSpec-alert-name x)))])
-                  throw-lst)]
-                [(exc-check ...)
-                 (if no-throws? 
-                     '()
-                     (list
-                      #`[(GotException? r)
-                         (make-Bad-from-exception r #:op #,f-stx)]))]
-                [post-checked-r post-checked-r-stx])
+  (with-syntax* ([f f-stx]
+                 [(a ...) arg-lst]
+                 [(p ...) param-lst]
+                 [(pre-check ...)
+                  (if (null? pre-lst)
+                      null
+                      (list
+                       (with-syntax*
+                         ([args (generate-temporary 'args)]
+                          [(get-fail ...)
+                           (for/list ([pre pre-lst]) ;; of PreCond
+                             #`(maybe-get-pre-failure
+                                #'#,f-stx
+                                '#,(AlertSpec-alert-name pre)
+                                #,(PreCond-cond-expr pre)
+                                args))])
+                         #'[(let ([args (list p ...)])
+                              (or get-fail ...)) => (lambda (x) x)])))]
+                 [(exc-clause ...)
+                  (map
+                   (lambda (x) 
+                     #`[#,(OnThrow-predicate-expr x)
+                         (lambda (exn) 
+                           (GotException '#,(AlertSpec-alert-name x)))])
+                   throw-lst)]
+                 [(exc-check ...)
+                  (if (null? throw-lst)
+                      null
+                      (list
+                       #`[(GotException? r)
+                          (make-Bad-from-exception r #:op #,f-stx)]))]
+                 [post-checked-r post-checked-r-stx])
     (cond-or-fail
      [(memq 'primitive modifs)
       #'(let-Good-args 
          ([p a] ...) #:op f
          #:then
          (cond 
-           [pre-check => (lambda (x) x)] ...
+           pre-check ...
            [else
             (let ([r (with-handlers (exc-clause ...)
                        (#%plain-app f (Good-v p) ...))])
@@ -430,7 +435,7 @@ The RVM language, without the reader and the standard library.
          ([p a] ...) #:op f
          #:then
          (cond 
-           [pre-check => (lambda (x) x)] ...
+           pre-check ...
            [else
             (let ([r (with-handlers (exc-clause ...)
                        (#%plain-app f p ...))])
@@ -447,7 +452,7 @@ The RVM language, without the reader and the standard library.
      [(memq 'handler modifs)
       #'(let ([p a] ...)
           (cond 
-            [pre-check => (lambda (x) x)] ...
+            pre-check ...
             [else
              (let ([r (with-handlers (exc-clause ...)
                         (#%plain-app f p ...))])
@@ -455,11 +460,10 @@ The RVM language, without the reader and the standard library.
                  exc-check ...
                  [(and (Good? r) (not (data-invariant? (Good-v r))))
                   ;; Note that DI's need not hold for Bad values.
-                  (bad-condition #:data-invariant 
-                                 r #'f (list p ...))]
+                  (bad-condition #:data-invariant r #'f (list p ...))]
                  [else
-                  ;; Note that any predicates used here really should be
-                  ;; #:handler's also.
+                  ;; Any predicates used in post-conditions really
+                  ;; should be #:handler's also.
                   post-checked-r]))]))])))
 
 (define-syntax-parameter on-alert-hook
