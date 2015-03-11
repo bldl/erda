@@ -32,7 +32,10 @@ A language implementation internal API.
   (when val
     (fprintf out "«~s»" (if (Good? val) (Good-v val) val)))
   (when op
-    (fprintf out "[~a]" (syntax-e op)))
+    (fprintf out "[~a]" (syntax-e op))
+    (let ((args (Bad-args v)))
+      (when args
+        (fprintf out "~s" args))))
   (cond
     [(Bad-arg v) => 
      (lambda (arg)
@@ -41,12 +44,14 @@ A language implementation internal API.
      (lambda (cause)
        (fprintf out "⇐~s" cause))]))
 
-;; A bad value `bad-v` is any wrapped value or #f, a `name` is an
-;; alert name symbol, `op` is an operation identifier or #f, `arg` is
-;; any `Bad` argument (or #f) that prevented evaluation of operation
-;; `op`, and `cause` is any other `Bad`ness that caused the error (or
-;; #f).
-(struct Bad Result (bad-v name op arg cause)
+;; A bad value `bad-v` is any wrapped value that did not satisfy an
+;; invariant (or #f for none), a `name` is an alert name symbol, `op`
+;; is an operation identifier or #f, `arg` is any `Bad` argument (or
+;; #f) that prevented evaluation of operation `op`, `cause` is any
+;; other `Bad`ness (or #f) that caused the error, and `args` is any
+;; informational list of fully evaluated arguments (or #f) that were
+;; not as such the cause of the error.
+(struct Bad Result (bad-v name op arg cause args)
   #:transparent
   #:methods gen:custom-write
   [(define write-proc Bad-write)])
@@ -60,25 +65,25 @@ A language implementation internal API.
 (define-syntax* bad-condition
   (syntax-rules ()
     [(_ #:bad-arg arg op)
-     (Bad #f 'bad-arg op arg #f)]
-    [(_ #:data-invariant v op)
-     (Bad v 'broken-DI op #f #f)]
+     (Bad #f 'bad-arg op arg #f #f)]
+    [(_ #:data-invariant v op args)
+     (Bad v 'broken-DI op #f #f args)]
     [(_ #:original name op)
-     (Bad #f name op #f #f)]
+     (Bad #f name op #f #f #f)]
     [(_ #:original name op #:value v)
-     (Bad v name op #f #f)]
+     (Bad v name op #f #f #f)]
     [(_ #:original name op #:cause cause)
-     (Bad #f name op #f cause)]
+     (Bad #f name op #f cause #f)]
     [(_ #:precond-alert name op)
-     (Bad #f name op #f #f)]
+     (Bad #f name op #f #f #f)]
     [(_ #:postcond-alert name op v)
-     (Bad v name op #f #f)]
+     (Bad v name op #f #f #f)]
     [(_ #:bad-precond cause op)
-     (Bad #f 'bad-precond op #f cause)]
+     (Bad #f 'bad-precond op #f cause #f)]
     [(_ #:bad-postcond cause op v)
-     (Bad v 'bad-postcond op #f cause)]
+     (Bad v 'bad-postcond op #f cause #f)]
     [(_ #:exception-alert name op)
-     (Bad #f name op #f #f)]
+     (Bad #f name op #f #f #f)]
     ))
 
 ;; Recursively looks for a value from the passed `Bad` value `x`,
