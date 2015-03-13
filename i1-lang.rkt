@@ -513,50 +513,45 @@ The RVM language, without the reader and the standard library.
 (define-syntax* (try stx)
   (define-syntax-class catch 
     #:description "#:catch clause for a `try`"
-    #:attributes (names then)
+    #:attributes (info)
     (pattern
      ((a:id ...) h:expr ...+)
-     #:attr names (syntax->list #'(a ...))
-     #:attr then #'(begin h ...)))
+     #:attr info (list (syntax->list #'(a ...))
+                       (syntax->list #'(h ...)))))
   
   (define-syntax-class catch-all
     #:description "#:catch clause for a `try`"
     #:attributes (then)
     (pattern
      ((~datum _) h:expr ...+)
-     #:attr then #'(begin h ...)))
-  
-  (define (mk-clause id-lst then-stx r-stx)
-    (with-syntax ([r r-stx]
-                  [(a ...) id-lst]
-                  [then then-stx])
-      #'((and (Bad? r)
-              (let ([n (Bad-origin-name r)])
-                (or (eq? n (quote a)) ...)))
-         then)))
-  
-  (define (mk-else-clause then-stx r-stx)
-    (with-syntax ([r r-stx]
-                  [then then-stx])
-      #'((Bad? r)
-         then)))
-  
+     #:attr then (syntax->list #'(h ...))))
+
   (syntax-parse stx
-    [(_ b:expr ...+ #:catch r:id cc:catch ... (~optional ec:catch-all))
-     (define clause-stx-lst
-       (append
-        (for/list ([name-ids (attribute cc.names)]
-                   [then-stx (attribute cc.then)])
-          (mk-clause name-ids then-stx #'r))
-        (let ([then-stx (attribute ec.then)])
-          (if then-stx 
-              (list (mk-else-clause then-stx #'r))
-              '()))))
-     (with-syntax ([(c ...) clause-stx-lst])
-       #'(let ([r (begin b ...)])
-           (cond
-            c ...
-            [else r])))]))
+    [(_ b:expr ...+ #:catch cc:catch ... (~optional ec:catch-all))
+     (define r-stx (generate-temporary 'r))
+     (with-syntax ([r r-stx])
+       (with-syntax 
+         ([(catch-clause ...)
+           (for/list ([info (attribute cc.info)])
+             (define name-ids (first info))
+             (define then-stx-lst (second info))
+             (with-syntax ([(a ...) name-ids]
+                           [(then ...) then-stx-lst])
+               #'[(let ([n (Bad-origin-name r)])
+                    (or (eq? n (quote a)) ...))
+                  then ...]))]
+          [catch-all-clause
+           (let ([then-stx-lst (attribute ec.then)])
+             (if then-stx-lst
+                 #`[else #,@then-stx-lst]
+                 #'[else r]))])
+         #'(let ([r (begin b ...)])
+             (if (Good? r) r
+                 (syntax-parameterize ([value
+                                        (make-rename-transformer #'r)])
+                   (cond
+                     catch-clause ...
+                     catch-all-clause))))))]))
 
 ;; Handles any error in the `try-e` expression by evaluating the
 ;; `fail-e` expression instead. Equivalent to (try try-e #:catch ex [_

@@ -242,16 +242,23 @@ Some test code written in the erda/rvm language.
 (let ((x 5)) (anti-do ((x x)) x))
 (anti-do ((x (/ 7 0))) (* x 2))
 
-(try 1 #:catch ex)
-(try 1 2 #:catch ex)
-(try 1 3 #:catch ex [(bad worse horrible) 9])
-(try 1 (/ 1 0) #:catch ex [_ 9])
-(try (raise 'bad) #:catch ex [(worse horrible) 9])
-(try (raise 'bad) #:catch ex [(bad worse horrible) 9])
+(try 1 #:catch)
+(try 1 #:catch [_ value])
+(try 1 2 #:catch)
+(try 1 3 #:catch [(bad worse horrible) 9])
+(try (raise 'bad) #:catch [(worse horrible) 9])
+(try (raise 'bad) #:catch [(bad worse horrible) 9])
+(try (raise 'bad) 1 #:catch)
+(try (raise 'bad) #:catch)
+(try (raise 'bad) #:catch [(worse) 9])
+(try (raise 'bad) #:catch [(worse) 9] [(bad) 10] [_ 11])
+(try (raise 'horrible) #:catch [(worse) 9] [(bad) 10] [_ 11])
+(try (raise 'horrible) #:catch [(worse) 9] [(bad) 10] [_ value])
+(try (raise-with-value 'bad 10) #:catch [(worse) 9] [(bad) (default-to-bad value)] [_ 11])
 
 ;; should we match the original error, the most recent, or any of
 ;; them? -- currently matching original one, so this does match
-(try (+ 1 (/ 2 0) 3) #:catch ex [(div-by-0) 4])
+(try (+ 1 (/ 2 0) 3) #:catch [(div-by-0) 4])
 
 (+ 1 (default-to-bad (raise-with-value 'bad 5)))
 (+ 2 (default-to-bad 3))
@@ -260,8 +267,8 @@ Some test code written in the erda/rvm language.
 
 (begin 1 (/ 1 0)) ;; => div-by-0[/]
 (begin (/ 1 0) 1) ;; => (Good 1)
-(try 1 (/ 1 0) #:catch ex [_ 9]) ;; => (Good 9)
-(try (/ 1 0) 1 #:catch ex [_ 9]) ;; => (Good 1)
+(try 1 (/ 1 0) #:catch [_ 9]) ;; => (Good 9)
+(try (/ 1 0) 1 #:catch [_ 9]) ;; => (Good 1)
 
 (define (identity x) x)
 
