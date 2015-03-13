@@ -513,10 +513,11 @@ The RVM language, without the reader and the standard library.
 (define-syntax* (try stx)
   (define-syntax-class catch 
     #:description "#:catch clause for a `try`"
-    #:attributes (info)
+    #:attributes (names then)
     (pattern
      ((a:id ...) h:expr ...+)
-     #:attr info (cons (syntax->list #'(a ...)) #'(begin h ...))))
+     #:attr names (syntax->list #'(a ...))
+     #:attr then #'(begin h ...)))
   
   (define-syntax-class catch-all
     #:description "#:catch clause for a `try`"
@@ -544,10 +545,13 @@ The RVM language, without the reader and the standard library.
     [(_ b:expr ...+ #:catch r:id cc:catch ... (~optional ec:catch-all))
      (define clause-stx-lst
        (append
-        (for/list ([info (attribute cc.info)])
-          (mk-clause (car info) (cdr info) #'r))
-        (let ([x (attribute ec.then)])
-          (if x (list (mk-else-clause x #'r)) '()))))
+        (for/list ([name-ids (attribute cc.names)]
+                   [then-stx (attribute cc.then)])
+          (mk-clause name-ids then-stx #'r))
+        (let ([then-stx (attribute ec.then)])
+          (if then-stx 
+              (list (mk-else-clause then-stx #'r))
+              '()))))
      (with-syntax ([(c ...) clause-stx-lst])
        #'(let ([r (begin b ...)])
            (cond
