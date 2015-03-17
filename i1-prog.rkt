@@ -8,8 +8,9 @@ Some test code written in the erda/rvm language.
 
 (require (for-racket [racket/base define #%datum #%app displayln]))
 (require (only-in racket/base = < > + - * / add1 sub1
-                  exn:fail:contract:divide-by-zero?
+                  exn:fail:contract:divide-by-zero? list
                   [/ throwing-/]))
+(require (only-in "util.rkt" writeln))
 
 (define (never-happy a b c)
   #:alert ([unhappy post-when (= 0 0)])
@@ -57,9 +58,18 @@ Some test code written in the erda/rvm language.
 (define (f1) 
   (raise 'f1-error))
 
+(define (f2) 
+  (raise 'f2-error))
+
 (on-alert ([(f1) 7]) (f1))
 (on-alert () 5 6)
 (on-alert () 5 (raise-with-value 'bad 6))
+
+(on-alert ([(f1) 'outer-f1])
+  (on-alert ([(f2) 'only-f2])
+    (writeln (list (f1) (f2)))
+    (on-alert ([(f1) 'inner-f1])
+      (writeln (list (f1) (f2))))))
 
 (define (anything-but-Good-five? x) #:handler
   (not (and (good-result? x) (= x 5))))
