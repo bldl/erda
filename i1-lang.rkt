@@ -44,24 +44,6 @@ The RVM language, without the reader and the standard library.
          (from-prefixed-out my- quote if if-not or and cond define)
          (all-from-out "util/racket-require.rkt"))
 
-(define-syntax-parameter direct-app? #f)
-
-(define-syntax* (begin-direct stx)
-  (syntax-parse stx
-    [(_ e:expr ...+)
-     #'(syntax-parameterize ([direct-app? #t])
-         e ...)]))
-
-(define-syntax (define-my-syntax stx)
-  (syntax-parse stx
-    [(_ my-name:id monadic-impl:id direct-impl:id)
-     #'(define-syntax (my-name ctx)
-         (syntax-parse ctx
-           [(_ . rest)
-            (if (syntax-parameter-value #'direct-app?)
-                #'(direct-impl . rest)
-                #'(monadic-impl . rest))]))]))
-
 (define-syntax (monadic-datum stx)
   (syntax-case stx ()
     [(_ . dat)
@@ -75,16 +57,6 @@ The RVM language, without the reader and the standard library.
      #'(Good (quote dat))]))
 
 (define-my-syntax my-quote monadic-quote quote)
-
-(define-syntax let-Good-args
-  (syntax-rules ()
-    [(_ () #:op op-id #:then then ...)
-     (let () then ...)]
-    [(_ ([p e] . rest) #:op op-id #:then then ...)
-     (let ([p e])
-       (if (Bad? p)
-           (bad-condition #:bad-arg p #'op-id)
-           (let-Good-args rest #:op op-id #:then then ...)))]))
 
 (define (monadic-not v)
   (cond-or-fail

@@ -245,9 +245,6 @@ Some test code written in the erda/rvm language.
 (default-to-bad (raise-with-value 'worse 11))
 (default-to-bad 12)
 
-(begin-direct 5)
-(begin-direct (if #t (- 7 1) (and 7 8)))
-
 (let ((y 5)) (anti-do ((x y)) (* 2 x)))
 (let ((x 5)) (anti-do ((x x)) x))
 (anti-do ((x (/ 7 0))) (* x 2))

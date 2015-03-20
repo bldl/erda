@@ -91,6 +91,16 @@ A language implementation internal API.
      (Bad #f name op #f #f args)]
     ))
 
+(define-syntax* let-Good-args
+  (syntax-rules ()
+    [(_ () #:op op-id #:then then ...)
+     (let () then ...)]
+    [(_ ([p e] . rest) #:op op-id #:then then ...)
+     (let ([p e])
+       (if (Bad? p)
+           (bad-condition #:bad-arg p #'op-id)
+           (let-Good-args rest #:op op-id #:then then ...)))]))
+
 ;; Recursively looks for a value from the passed `Bad` value `x`,
 ;; traversing through any `arg` chain, returning the first available
 ;; (wrapped) `bad-v` value. Otherwise returns #f, or as specified by
@@ -148,3 +158,25 @@ A language implementation internal API.
 ;; Our `try` construct matches based on this name.
 (define* (Bad-origin-name x)
   (Bad-name (Bad-origin x)))
+
+;;; 
+;;; direct application
+;;; 
+
+(define-syntax-parameter direct-app? #f)
+
+(define-syntax* (begin-direct stx)
+  (syntax-parse stx
+    [(_ e:expr ...+)
+     #'(syntax-parameterize ([direct-app? #t])
+         e ...)]))
+
+(define-syntax* (define-my-syntax stx)
+  (syntax-parse stx
+    [(_ my-name:id monadic-impl:id direct-impl:id)
+     #'(define-syntax (my-name ctx)
+         (syntax-parse ctx
+           [(_ . rest)
+            (if (syntax-parameter-value #'direct-app?)
+                #'(direct-impl . rest)
+                #'(monadic-impl . rest))]))]))
