@@ -12,7 +12,7 @@ conditional forms in this language.
   erda/sigma-rvm)
 
 (module impl racket/base
-  (require "i1-internal.rkt"
+  (require "i1-internal.rkt" racket/stxparam
            (for-syntax racket/base syntax/parse))
   
   (provide my-if my-when my-unless)
@@ -25,9 +25,10 @@ conditional forms in this language.
                                     null)])
          #'(let ([v c])
              (if (Bad? v)
-                 (begin0
-                     (bad-condition #:bad-arg v #'monadic-if/cleanup)
-                   act ...)
+                 (let ([r (bad-condition #:bad-arg v #'monadic-if/cleanup)])
+                   (syntax-parameterize ([value
+                                          (make-rename-transformer #'r)])
+                     act ... r))
                  (if (Good-v v) t e))))]))
 
   (define-syntax (my-when stx)

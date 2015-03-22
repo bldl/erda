@@ -160,6 +160,15 @@ A language implementation internal API.
   (Bad-name (Bad-origin x)))
 
 ;;; 
+;;; result `value`
+;;; 
+
+;; An identifier that may be used to refer to a function's return
+;; value in a post-condition alert expression context.
+(define-syntax-parameter* value
+  (syntax-rules ()))
+
+;;; 
 ;;; direct application
 ;;; 
 

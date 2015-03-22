@@ -42,6 +42,7 @@ The RVM language, without the reader and the standard library.
          (rename-out [my-app #%app])
          not
          (from-prefixed-out my- quote if if-not or and cond define)
+         value
          (all-from-out "util/racket-require.rkt"))
 
 (define-syntax (monadic-datum stx)
@@ -209,11 +210,6 @@ The RVM language, without the reader and the standard library.
            fun-meta-table 
            #'n 
            (AlertingFunction modifs #'params (list rec ...)))))))
-
-;; An identifier that may be used to refer to a function's return
-;; value in a post-condition alert expression context.
-(define-syntax-parameter* value
-  (syntax-rules ()))
 
 (define-syntax (my-define stx)
   (syntax-parse stx
