@@ -122,6 +122,4 @@ generally not a part of the `erda/cxx` language.
   (make-module-begin 
    stx
    #:prelude-path #''(erda/i2-lib)
-   #:prelude-ids (list #'Bool #'Void
-                       #'data-invariant?)))
-
+   #:prelude-ids (list #'Bool #'Void)))

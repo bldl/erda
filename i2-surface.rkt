@@ -6,6 +6,9 @@
 
 (require "i2-internal.rkt"
          "util.rkt" "util/provide-syntax.rkt"
+         (rename-in magnolisp/surface 
+                    [define mgl.define]
+                    [declare mgl.declare])
          racket/bool racket/function racket/generic racket/list 
          racket/match racket/stxparam
          (for-syntax racket/base racket/function
@@ -37,6 +40,7 @@
          let let* letrec
          
          ;; (rename-out [my-app #%app]) ;; xxx
+         (rename-out [mgl.define define])
          (from-prefixed-out my- quote 
                             ;;if if-not or and cond define ;; xxx
                             )

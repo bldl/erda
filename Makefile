@@ -14,6 +14,9 @@ setup :
 clean :
 	find -name compiled -type d -print0 | xargs -0 --no-run-if-empty rm -r
 
+test :
+	raco test --direct --no-run-if-absent tests/run-*.rkt
+
 api-doc :
 	-rm -r doc
 	mkdir -p doc/manual
