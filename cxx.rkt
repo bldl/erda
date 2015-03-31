@@ -8,7 +8,14 @@ fewer runtime requirements.
 |#
 
 (module reader syntax/module-reader 
-  erda/cxx)
+  erda/cxx
+  #:wrapper1 (lambda (t)
+               (with-magnolisp-readtable
+                 (t)))
+  (require magnolisp/reader-ext))
+
+(require magnolisp/core)
+(provide Bool Void)
 
 (require "i2-internal.rkt")
 (provide (rename-out [i2-module-begin #%module-begin]))

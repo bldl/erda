@@ -38,9 +38,18 @@
          
          ;; single static assignment forms
          let let* letrec
+
+         ;; from Magnolisp
+         type export foreign ;; annotations
+         -> exists for-all <> ;; type expressions
+         (rename-out [exists ∃] [for-all ∀])
+         let-annotate cast ;; value expressions
+         abstract-type ;; miscellaneous
          
          ;; (rename-out [my-app #%app]) ;; xxx
-         (rename-out [mgl.define define])
+         (rename-out [#%plain-app #%app]) ;; xxx temporarily
+         (rename-out [mgl.declare declare]) ;; xxx temporarily
+         (rename-out [mgl.define define]) ;; xxx temporarily
          (from-prefixed-out my- quote 
                             ;;if if-not or and cond define ;; xxx
                             )

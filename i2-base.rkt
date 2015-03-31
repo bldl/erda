@@ -11,3 +11,6 @@ Defines an implementation language for the `erda/cxx` standard library.
 
 (require "i2-surface.rkt")
 (provide (all-from-out "i2-surface.rkt"))
+
+(require magnolisp/core)
+(provide Bool Void)

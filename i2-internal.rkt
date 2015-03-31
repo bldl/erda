@@ -24,10 +24,10 @@ generally not a part of the `erda/cxx` language.
 (concrete-struct* Nothing Maybe () #:transparent)
 (concrete-struct* Just Maybe (v) #:transparent)
 
-(abstract-struct* Result () #:transparent)
+(abstract-struct* ResultObj () #:transparent)
 
 ;; Field `v` :: T.
-(concrete-struct* Good Result (v) #:transparent)
+(concrete-struct* Good ResultObj (v) #:transparent)
 
 (define (Bad-write bad out mode)
   (fprintf out "(Bad")
@@ -38,7 +38,7 @@ generally not a part of the `erda/cxx` language.
 
 ;; The `v` :: Maybe<Result<T>> field contains an optional wrapped
 ;; value that did not satisfy an invariant.
-(concrete-struct* Bad Result (v)
+(concrete-struct* Bad ResultObj (v)
   #:transparent
   #:methods gen:custom-write
   [(define write-proc Bad-write)])
