@@ -20,9 +20,9 @@ generally not a part of the `erda/cxx` language.
 
 (define* (data-invariant? x) #t)
 
-(abstract-struct* Maybe () #:transparent)
-(concrete-struct* Nothing Maybe () #:transparent)
-(concrete-struct* Just Maybe (v) #:transparent)
+(abstract-struct* MaybeObj () #:transparent)
+(concrete-struct* Nothing MaybeObj () #:transparent)
+(concrete-struct* Just MaybeObj (v) #:transparent)
 
 (abstract-struct* ResultObj () #:transparent)
 

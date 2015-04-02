@@ -24,15 +24,48 @@
        (define (n p ...) . more)
        (provide n))]))
 
+;;; 
+;;; optional type
+;;;
+
+(define* #:type Maybe #:: (foreign))
+
+(define* (Maybe? w) 
+  #:: (foreign [type (∀ T (-> (<> Maybe T) Bool))])
+  (rapp MaybeObj? w))
+
+(declare (Just v) 
+  #:: ([foreign Just] [type (∀ T (-> T (<> Maybe T)))]))
+(declare (Just? w) 
+  #:: (foreign [type (∀ T (-> (<> Maybe T) Bool))]))
+(declare (Just-v w) 
+  #:: (foreign [type (∀ T (-> (<> Maybe T) T))]))
+
+(declare (Nothing)
+  #:: ([foreign Nothing] [type (∀ T (-> (<> Maybe T)))]))
+(declare (Nothing? w) 
+  #:: (foreign [type (∀ T (-> (<> Maybe T) Bool))]))
+
+;;; 
+;;; wrapper type
+;;;
+
 (define* #:type Result #:: (foreign))
 
-(define* (Result? w) #:: (foreign [type (∀ T (-> (<> Result T) Bool))])
+(define* (Result? w) 
+  #:: (foreign [type (∀ T (-> (<> Result T) Bool))])
   (rapp ResultObj? w))
 
-(declare (Good v) #:: (foreign [type (∀ T (-> T (<> Result T)))]))
-(declare (Good? w) #:: (foreign [type (∀ T (-> (<> Result T) Bool))]))
-(declare (Good-v w) #:: (foreign [type (∀ T (-> (<> Result T) T))]))
+(declare (Good v) 
+  #:: ([foreign Good] [type (∀ T (-> T (<> Result T)))]))
+(declare (Good? w) 
+  #:: (foreign [type (∀ T (-> (<> Result T) Bool))]))
+(declare (Good-v w) 
+  #:: (foreign [type (∀ T (-> (<> Result T) T))]))
 
-(declare (Bad v) #:: (foreign [type (∀ T (-> T (<> Result T)))]))
-(declare (Bad? w) #:: (foreign [type (∀ T (-> (<> Result T) Bool))]))
-(declare (Bad-v w) #:: (foreign [type (∀ T (-> (<> Result T) T))]))
+(declare (Bad v) 
+  #:: ([foreign Bad] [type (∀ T (-> (<> Maybe T) (<> Result T)))]))
+(declare (Bad? w) 
+  #:: (foreign [type (∀ T (-> (<> Result T) Bool))]))
+(declare (Bad-v w) 
+  #:: (foreign [type (∀ T (-> (<> Result T) (<> Maybe T)))]))
