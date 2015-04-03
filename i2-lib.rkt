@@ -25,7 +25,7 @@
        (provide n))]))
 
 ;;; 
-;;; DI
+;;; data invariant
 ;;; 
 
 (declare (data-invariant? v) #:direct
@@ -37,7 +37,7 @@
 
 (define* #:type Maybe #:: (foreign))
 
-(define* (Maybe? w)
+(define* (Maybe? w) #:direct
   #:: (foreign [type (∀ T (-> (<> Maybe T) Bool))])
   (rapp MaybeObj? w))
 
@@ -59,7 +59,7 @@
 
 (define* #:type Result #:: (foreign))
 
-(define* (Result? w)
+(define* (Result? w) #:direct
   #:: (foreign [type (∀ T (-> (<> Result T) Bool))])
   (rapp ResultObj? w))
 

@@ -48,11 +48,9 @@
          
          ;; (rename-out [my-app #%app]) ;; xxx
          (rename-out [#%plain-app #%app]) ;; xxx temporarily
-         (rename-out [mgl-define define]) ;; xxx temporarily
          (from-prefixed-out my- quote 
                             if if-not or and cond
-                            ;;define ;; xxx
-                            declare)
+                            declare define)
          value)
 
 ;;; 
@@ -220,7 +218,9 @@
   (define-splicing-syntax-class maybe-annos+alerts
     #:attributes (alerts annos)
     (pattern
-     (~seq annos:my-maybe-annos alerts:maybe-alerts)))
+     (~seq an:my-maybe-annos al:maybe-alerts)
+     #:attr annos (attribute an.annos)
+     #:attr alerts (attribute al.alerts)))
 
   (define (mk-reg-DirectFunction n-stx)
     (with-syntax ([n n-stx])
@@ -246,19 +246,57 @@
 (define-syntax (my-declare stx)
   (syntax-parse stx
     [(_ (n:id . ps) #:direct opts:my-maybe-annos)
-     #`(begin
-         #,(mk-reg-DirectFunction #'n)
-         (mgl-declare (n . ps) #:: opts.annos))]
+     (with-syntax ([reg-DirectFunction
+                    (mk-reg-DirectFunction #'n)])
+       #'(begin
+           (mgl-declare (n . ps) #:: opts.annos)
+           reg-DirectFunction))]
     [(_ (n:id p:id ...) #:handler opts:maybe-annos+alerts)
-       #`(begin
-           #,(mk-reg-AlertingFunction 
-              #'n '(handler) #'(p ...) (attribute opts.alerts))
-           (mgl-declare (n p ...) #:: opts.annos))]
+     (with-syntax ([reg-AlertingFunction
+                    (mk-reg-AlertingFunction 
+                     #'n '(handler) #'(p ...) (attribute opts.alerts))])
+       #'(begin
+           (mgl-declare (n p ...) #:: opts.annos)
+           reg-AlertingFunction))]
     [(_ (n:id p:id ...) opts:maybe-annos+alerts)
-     #`(begin
-         #,(mk-reg-AlertingFunction 
-            #'n '(primitive) #'(p ...) (attribute opts.alerts))
-         (mgl-declare (n p ...) #:: opts.annos))]
+     (with-syntax ([reg-AlertingFunction
+                    (mk-reg-AlertingFunction 
+                     #'n '(primitive) #'(p ...) (attribute opts.alerts))])
+       #'(begin
+           (mgl-declare (n p ...) #:: opts.annos)
+           reg-AlertingFunction))]
     [(_ #:type . rest)
      #'(mgl-declare #:type . rest)]
+    ))
+
+(define-syntax (my-define stx)
+  (syntax-parse stx
+    [(_ n:id e:expr)
+     #'(define n e)]
+    [(_ n:id #:: as:expr e:expr)
+     #'(mgl-define n #:: as e)]
+    [(_ #:type . rest)
+     #'(mgl-define #:type . rest)]
+    [(_ (n:id . ps) #:direct opts:my-maybe-annos b:expr ...)
+     (with-syntax ([reg-DirectFunction
+                    (mk-reg-DirectFunction #'n)])
+       #'(begin
+           (mgl-define (n . ps) #:: opts.annos b ...)
+           reg-DirectFunction))]
+    [(_ (n:id p:id ...) #:handler opts:maybe-annos+alerts b:expr ...+)
+     (with-syntax ([reg-AlertingFunction
+                    (mk-reg-AlertingFunction
+                     #'n '(handler) #'(p ...) 
+                     (attribute opts.alerts))])
+       #'(begin
+           (mgl-define (n p ...) #:: opts.annos b ...)
+           reg-AlertingFunction))]
+    [(_ (n:id p:id ...) opts:maybe-annos+alerts b:expr ...+)
+     (with-syntax ([reg-AlertingFunction
+                    (mk-reg-AlertingFunction
+                     #'n '(regular) #'(p ...) 
+                     (attribute opts.alerts))])
+       #'(begin
+           (mgl-define (n p ...) #:: opts.annos b ...)
+           reg-AlertingFunction))]
     ))
