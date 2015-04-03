@@ -25,6 +25,13 @@
        (provide n))]))
 
 ;;; 
+;;; DI
+;;; 
+
+(declare (data-invariant? v) #:direct
+  #:: (foreign [type (∀ T (-> T Bool))]))
+
+;;; 
 ;;; optional type
 ;;;
 

@@ -121,6 +121,26 @@
 (define-my-syntax my-cond monadic-cond cond)
 
 ;;; 
+;;; monadic block
+;;; 
+
+(define-syntax* block
+  (syntax-rules ()
+    [(_ e) 
+     e]
+    [(_ (#:let x v) . es)
+     (let ([x v])
+       (block . es))]
+    [(_ (#:when c #:let x v) . es)
+     (let ([x (my-if c v x)])
+       (if (Bad? x)
+           x
+           (block . es)))]
+    [(_ e . es)
+     (let () e (block . es))]
+    ))
+
+;;;
 ;;; declarations
 ;;;
 
