@@ -138,6 +138,27 @@
      (let () e (block . es))]
     ))
 
+;;; 
+;;; unwrapped operation
+;;; 
+
+;; The opposite of a `do` in Haskell. The `b ...` expressions deal in
+;; bare values. The "free variables" and their values should be given
+;; as `[p e] ...` for unwrapping.
+(define-syntax* (anti-do stx)
+  (syntax-parse stx
+    [(_ ([p:id e:expr] ...) b:expr ...+)
+     #'(let-Good-args 
+        ([p e] ...) #:op anti-do
+        #:then
+        (let ([p (Good-v p)] ...)
+          (let ([r (begin-direct b ...)])
+            (if (data-invariant? r)
+                (Good r)
+                (bad-condition #:data-invariant 
+                               (Good r) #'anti-do
+                               (list (Good p) ...))))))]))
+
 ;;;
 ;;; declarations
 ;;;
