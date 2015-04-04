@@ -213,14 +213,16 @@
 
   ;; A superficial match against optional Magnolisp annotations.
   (define-splicing-syntax-class mgl-annos?
-    (pattern (~seq #:: an:expr))
-    (pattern (~seq)))
+    #:attributes ([annos 1])
+    (pattern (~seq #:: an:expr) 
+             #:with (annos ...) #'(#:: an))
+    (pattern (~seq) 
+             #:with (annos ...) '()))
   
-  (define-splicing-syntax-class maybe-annos+alerts
+  (define-splicing-syntax-class mgl-annos+alerts?
     #:attributes ([annos 1] alerts)
     (pattern
-     (~seq an:mgl-annos? al:maybe-alerts)
-     #:with (annos ...) #'an
+     (~seq ||:mgl-annos? al:maybe-alerts)
      #:attr alerts (attribute al.alerts)))
 
   (define (mk-reg-DirectFunction n-stx)
@@ -246,20 +248,20 @@
 ;; invokes Magnolisp `declare` for recording metadata for Magnolisp.
 (define-syntax (my-declare stx)
   (syntax-parse stx
-    [(_ (n:id . ps) #:direct an:mgl-annos?)
+    [(_ (n:id . ps) #:direct opts:mgl-annos?)
      (with-syntax ([reg-DirectFunction
                     (mk-reg-DirectFunction #'n)])
        #'(begin
-           (mgl-declare (n . ps) . an)
+           (mgl-declare (n . ps) opts.annos ...)
            reg-DirectFunction))]
-    [(_ (n:id p:id ...) #:handler opts:maybe-annos+alerts)
+    [(_ (n:id p:id ...) #:handler opts:mgl-annos+alerts?)
      (with-syntax ([reg-AlertingFunction
                     (mk-reg-AlertingFunction 
                      #'n '(handler) #'(p ...) (attribute opts.alerts))])
        #'(begin
            (mgl-declare (n p ...) opts.annos ...)
            reg-AlertingFunction))]
-    [(_ (n:id p:id ...) opts:maybe-annos+alerts)
+    [(_ (n:id p:id ...) opts:mgl-annos+alerts?)
      (with-syntax ([reg-AlertingFunction
                     (mk-reg-AlertingFunction 
                      #'n '(primitive) #'(p ...) (attribute opts.alerts))])
@@ -278,14 +280,13 @@
      #'(mgl-define n #:: as e)]
     [(_ #:type . rest)
      #'(mgl-define #:type . rest)]
-    [(_ (n:id . ps) #:direct an:mgl-annos? b:expr ...)
+    [(_ (n:id . ps) #:direct opts:mgl-annos? b:expr ...)
      (with-syntax ([reg-DirectFunction
-                    (mk-reg-DirectFunction #'n)]
-                   [(mgl-an ...) #'an])
+                    (mk-reg-DirectFunction #'n)])
        #'(begin
-           (mgl-define (n . ps) mgl-an ... b ...)
+           (mgl-define (n . ps) opts.annos ... b ...)
            reg-DirectFunction))]
-    [(_ (n:id p:id ...) #:handler opts:maybe-annos+alerts b:expr ...+)
+    [(_ (n:id p:id ...) #:handler opts:mgl-annos+alerts? b:expr ...+)
      (with-syntax ([reg-AlertingFunction
                     (mk-reg-AlertingFunction
                      #'n '(handler) #'(p ...) 
@@ -293,7 +294,7 @@
        #'(begin
            (mgl-define (n p ...) opts.annos ... b ...)
            reg-AlertingFunction))]
-    [(_ (n:id p:id ...) opts:maybe-annos+alerts b:expr ...+)
+    [(_ (n:id p:id ...) opts:mgl-annos+alerts? b:expr ...+)
      (with-syntax ([reg-AlertingFunction
                     (mk-reg-AlertingFunction
                      #'n '(regular) #'(p ...) 
