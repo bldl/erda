@@ -25,6 +25,13 @@
        (provide n))]))
 
 ;;; 
+;;; Magnolisp types
+;;; 
+
+(declare #:type Bool #:: ([foreign bool]))
+(declare #:type Void #:: ([foreign void]))
+
+;;; 
 ;;; data invariant
 ;;; 
 
@@ -71,8 +78,8 @@
   #:: (foreign [type (∀ T (-> (<> Result T) T))]))
 
 (declare (Bad v) #:direct
-  #:: ([foreign Bad] [type (∀ T (-> (<> Maybe T) (<> Result T)))]))
+  #:: ([foreign Bad] [type (∀ T (-> (<> Maybe (<> Result T)) (<> Result T)))]))
 (declare (Bad? w) #:direct
   #:: (foreign [type (∀ T (-> (<> Result T) Bool))]))
 (declare (Bad-v w) #:direct
-  #:: (foreign [type (∀ T (-> (<> Result T) (<> Maybe T)))]))
+  #:: (foreign [type (∀ T (-> (<> Result T) (<> Maybe (<> Result T))))]))
