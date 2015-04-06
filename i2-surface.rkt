@@ -46,8 +46,8 @@
          let-annotate cast ;; value expressions
          abstract-type ;; miscellaneous
          
-         ;; (rename-out [my-app #%app]) ;; xxx
-         (rename-out [#%plain-app #%app]) ;; xxx temporarily
+         (rename-out [my-app #%app]) ;; xxx
+         ;;(rename-out [#%plain-app #%app]) ;; xxx temporarily
          (from-prefixed-out my- quote 
                             if if-not or and cond
                             declare define)
@@ -324,3 +324,138 @@
            (mgl-define (n p ...) opts.annos ... b ...)
            reg-AlertingFunction))]
     ))
+
+;;; 
+;;; function application
+;;; 
+
+(define-for-syntax (mk-UndeclaredFunction-app stx f-stx args-stx)
+  (define arg-lst (syntax->list args-stx))
+  (define param-lst (generate-temporaries arg-lst))
+  (with-syntax ([f f-stx]
+                [(a ...) arg-lst]
+                [(p ...) param-lst])
+    #'(let-Good-args
+       ([p a] ...) #:op f
+       #:then
+       (let ([r (#%plain-app f (Good-v p) ...)])
+         (cond
+          ((data-invariant? r)
+           (Good r))
+          (else
+           (bad-condition #:data-invariant (Good r) #'f (list p ...))))))))
+
+(define-for-syntax (mk-AlertingFunction-app info stx f-stx args-stx)
+  (define arg-lst (syntax->list args-stx))
+  (define modifs (AlertingFunction-modifs info))
+
+  ;; `param-lst` lists the variables to which to bind arguments.
+  ;; `pre-lst` is a list of PreCond objects, etc.
+  (define-values (param-lst pre-lst post-lst)
+    (if info
+        (let* ((p-stx (AlertingFunction-params info))
+               (p-lst (syntax->list p-stx))
+               (alert-lst (AlertingFunction-alerts info))
+               (pre-lst (filter PreCond? alert-lst))
+               (post-lst (filter PostCond? alert-lst))
+               (param-decl? (not (and (null? pre-lst) (null? post-lst))))
+               (param-lst
+                (if param-decl?
+                    (let ()
+                      (unless (= (length p-lst) (length arg-lst))
+                        (error 'my-app
+                               "declared arity for function ~a is ~a: ~s"
+                               (syntax-e f-stx) (length p-lst) stx))
+                      p-lst)
+                    (generate-temporaries arg-lst))))
+          (values param-lst pre-lst post-lst))
+        (values (generate-temporaries arg-lst) '() '())))
+
+  (define r-stx (generate-temporary 'r))
+
+  (with-syntax
+    ([f f-stx]
+     [(a ...) arg-lst]
+     [(p ...) param-lst]
+     [r r-stx])
+    (with-syntax
+      ([(pre-check ...)
+        (for/list ([pre pre-lst]) ;; of PreCond
+          #`['#,(AlertSpec-alert-name pre)
+               #,(PreCond-cond-expr pre)])]
+       [post-checked-r r-stx]) ;; TODO, no checks yet
+      (cond-or-fail
+       [(memq 'primitive modifs)
+        #'(let-Good-args 
+           ([p a] ...) #:op f
+           #:then
+           (cond-pre-checks
+            #:op f (list p ...)
+            #:checks (pre-check ...)
+            #:then
+            (let ([r (#%plain-app f (Good-v p) ...)])
+              (cond
+                [(not (data-invariant? r))
+                 (bad-condition #:data-invariant 
+                                (Good r) #'f (list p ...))]
+                [else
+                 (let ([r (Good r)])
+                   post-checked-r)]))))]
+       [(memq 'regular modifs)
+        #'(let-Good-args 
+           ([p a] ...) #:op f
+           #:then
+           (cond-pre-checks
+            #:op f (list p ...)
+            #:checks (pre-check ...)
+            #:then
+            (let ([r (#%plain-app f p ...)])
+              (cond
+                [(Bad? r)
+                 r]
+                [else
+                 (define v (Good-v r))
+                 (if (data-invariant? v)
+                     post-checked-r
+                     (bad-condition #:data-invariant 
+                                    r #'f (list p ...)))]))))]
+       [(memq 'handler modifs)
+        #'(let ([p a] ...)
+            (cond-pre-checks
+             #:op f (list p ...)
+             #:checks (pre-check ...)
+             #:then
+             (let ([r (#%plain-app f p ...)])
+               (cond
+                 [(and (Good? r) (not (data-invariant? (Good-v r))))
+                  ;; Note that DI's need not hold for Bad values.
+                  (bad-condition #:data-invariant r #'f (list p ...))]
+                 [else
+                  ;; Any predicates used in post-conditions really
+                  ;; should be #:handler's also.
+                  post-checked-r]))))]))))
+
+(define-syntax-parameter on-alert-hook
+  (syntax-rules ()
+    [(_ _ e) e]))
+
+(define-syntax (monadic-app stx)
+  (syntax-parse stx
+    [(_ f:id . args)
+     (define f-stx #'f)
+     (define info (free-id-table-ref fun-meta-table f-stx #f))
+     (cond
+       [(DirectFunction? info)
+        #'(#%app f . args)]
+       [else
+        (with-syntax 
+          ([app-expr
+            (cond-or-fail
+             [(not info)
+              (mk-UndeclaredFunction-app stx f-stx #'args)]
+             [(AlertingFunction? info)
+              (mk-AlertingFunction-app info stx f-stx #'args)]
+             )])
+          #'(on-alert-hook f app-expr))])]))
+
+(define-my-syntax my-app monadic-app #%app)

@@ -83,6 +83,20 @@ generally not a part of the `erda/cxx` language.
            (bad-condition #:bad-arg p #'op-id)
            (let-Good-args rest #:op op-id #:then then ...)))]))
 
+(define-syntax* cond-pre-checks
+  (syntax-rules ()
+    [(_ #:op op args #:checks () #:then then ...)
+     (let () then ...)]
+    [(_ #:op op args #:checks ([name c-e] . rest) #:then then ...)
+     (let ([v c-e])
+       (cond
+         [(Bad? v) 
+          (bad-condition #:bad-precond v #'op args)]
+         [(Good-v v) 
+          (bad-condition #:precond-alert name #'op args)]
+         [else 
+          (cond-pre-checks #:op op args #:checks rest #:then then ...)]))]))
+       
 ;;; 
 ;;; result `value`
 ;;; 
@@ -121,5 +135,4 @@ generally not a part of the `erda/cxx` language.
 (define-syntax* (i2-module-begin stx)
   (make-module-begin 
    stx
-   #:prelude-path #''(erda/i2-lib)
-   #:prelude-ids (list #'Bool #'Void)))
+   #:prelude-path #''(erda/i2-lib)))
