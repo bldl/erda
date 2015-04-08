@@ -1,6 +1,9 @@
 #lang erda/cxx
 
 #|
+
+Testing an Erda literal.
+
 |#
 
 (define #:type Symbol #:: (foreign))

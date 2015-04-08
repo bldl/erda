@@ -8,7 +8,7 @@
          (only-in "util.rkt" [define* rdefine*] writeln)
          (only-in racket/base 
                   begin-for-syntax define-syntax define-syntax-rule
-                  [#%app rapp] symbol?)
+                  [#%app rapp] not symbol?)
          (prefix-in r. racket/base)
          (only-in racket/bool symbol=?)
          (for-syntax racket/base syntax/parse))
@@ -30,6 +30,13 @@
 
 (declare #:type Bool #:: ([foreign bool]))
 (declare #:type Void #:: ([foreign void]))
+
+;;; 
+;;; Racket functions
+;;; 
+
+(declare (not x) #:: ([foreign !] 
+                      [type (-> (<> Result Bool) (<> Result Bool))]))
 
 ;;; 
 ;;; data invariant

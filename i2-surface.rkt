@@ -71,12 +71,14 @@
 
 (define-my-syntax my-quote monadic-quote quote)
 
+;; We use this internally (only), and do not export it. Note the use
+;; of the `not` function here (and below), which means it must be in
+;; the runtime.
 (define (monadic-not v)
   (cond-or-fail
    ((Good? v) (Good (not (Good-v v))))
    ((Bad? v) (bad-condition #:bad-arg v #'monadic-not))))
 
-;; We use this internally (only), to avoid (my-app not v).
 (define-my-syntax my-not monadic-not not)
 
 (define-syntax (monadic-if stx)
@@ -395,12 +397,13 @@
             #:then
             (let ([r (#%plain-app f (Good-v p) ...)])
               (cond
-                [(not (data-invariant? r))
+                [(data-invariant? r)
+                 (let ([r (Good r)])
+                   post-checked-r)]
+                [else
                  (bad-condition #:data-invariant 
                                 (Good r) #'f (list p ...))]
-                [else
-                 (let ([r (Good r)])
-                   post-checked-r)]))))]
+                ))))]
        [(memq 'regular modifs)
         #'(let-Good-args 
            ([p a] ...) #:op f
@@ -427,13 +430,12 @@
              #:then
              (let ([r (#%plain-app f p ...)])
                (cond
-                 [(and (Good? r) (not (data-invariant? (Good-v r))))
+                 [(or (Bad? r) (data-invariant? (Good-v r)))
+                  post-checked-r]
+                 [else
                   ;; Note that DI's need not hold for Bad values.
                   (bad-condition #:data-invariant r #'f (list p ...))]
-                 [else
-                  ;; Any predicates used in post-conditions really
-                  ;; should be #:handler's also.
-                  post-checked-r]))))]))))
+                 ))))]))))
 
 (define-syntax-parameter on-alert-hook
   (syntax-rules ()
