@@ -13,6 +13,13 @@
          (only-in racket/bool symbol=?)
          (for-syntax racket/base syntax/parse))
 
+(define-syntax declare*
+  (syntax-rules ()
+    [(_ (n p ...) . more)
+     (begin
+       (declare (n p ...) . more)
+       (provide n))]))
+
 (define-syntax define*
   (syntax-rules ()
     [(_ #:type n . more)
@@ -35,8 +42,8 @@
 ;;; Racket functions
 ;;; 
 
-(declare (not x) #:: ([foreign !] 
-                      [type (-> (<> Result Bool) (<> Result Bool))]))
+(declare* (not x) #:: ([foreign !] 
+                       [type (-> (<> Result Bool) (<> Result Bool))]))
 
 ;;; 
 ;;; data invariant
