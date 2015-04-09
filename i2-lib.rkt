@@ -42,8 +42,8 @@
 ;;; Racket functions
 ;;; 
 
-(declare* (not x) #:: ([foreign !] 
-                       [type (-> (<> Result Bool) (<> Result Bool))]))
+(declare (not x) 
+  #:: ([foreign !] [type (-> Bool Bool)]))
 
 ;;; 
 ;;; data invariant

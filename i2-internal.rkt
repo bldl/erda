@@ -88,11 +88,11 @@ generally not a part of the `erda/cxx` language.
     [(_ #:op op args #:checks () #:then then ...)
      (let () then ...)]
     [(_ #:op op args #:checks ([name c-e] . rest) #:then then ...)
-     (let ([v c-e])
+     (let ([c-v c-e])
        (cond
-         [(Bad? v) 
-          (bad-condition #:bad-precond v #'op args)]
-         [(Good-v v) 
+         [(Bad? c-v) 
+          (bad-condition #:bad-precond c-v #'op args)]
+         [(Good-v c-v) 
           (bad-condition #:precond-alert name #'op args)]
          [else 
           (cond-pre-checks #:op op args #:checks rest #:then then ...)]))]))

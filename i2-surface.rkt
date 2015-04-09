@@ -189,7 +189,7 @@
       [(pre post) #`(#,(if (eq? kind 'pre) #'PreCond #'PostCond)
                      '#,name
                      #'#,(if (third info)
-                             #`(my-not #,(fourth info))
+                             #`(monadic-not #,(fourth info))
                              (fourth info)))]))
   
   ;; (free-id-table/c identifier? Function?)
