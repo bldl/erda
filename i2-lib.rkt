@@ -58,10 +58,6 @@
 
 (define* #:type Maybe #:: (foreign))
 
-(define* (Maybe? w) #:direct
-  #:: (foreign [type (∀ T (-> (<> Maybe T) Bool))])
-  (rapp MaybeObj? w))
-
 (declare (Just v) #:direct
   #:: ([foreign Just] [type (∀ T (-> T (<> Maybe T)))]))
 (declare (Just? w) #:direct
@@ -79,10 +75,6 @@
 ;;;
 
 (define* #:type Result #:: (foreign))
-
-(define* (Result? w) #:direct
-  #:: (foreign [type (∀ T (-> (<> Result T) Bool))])
-  (rapp ResultObj? w))
 
 (declare (Good v) #:direct
   #:: ([foreign Good] [type (∀ T (-> T (<> Result T)))]))
