@@ -42,7 +42,7 @@
 ;;; Racket functions
 ;;; 
 
-(declare (not x) 
+(declare* (not x) 
   #:: ([foreign !] [type (-> Bool Bool)]))
 
 ;;; 
