@@ -2,7 +2,7 @@
 
 #|
 
-Testing an Erda primitive with a precondition.
+Testing an Erda primitive.
 
 Although `+` implementation does not deal in wrapped values, due to
 auto-wrapping callers still see it as if it did. Still, we must

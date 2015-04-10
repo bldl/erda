@@ -380,12 +380,19 @@
      [(a ...) arg-lst]
      [(p ...) param-lst]
      [r r-stx])
-    (with-syntax
+    (with-syntax*
       ([(pre-check ...)
         (for/list ([pre pre-lst]) ;; of PreCond
           #`['#,(AlertSpec-alert-name pre)
                #,(PreCond-cond-expr pre)])]
-       [post-checked-r r-stx]) ;; TODO, no checks yet
+       [(post-check ...)
+        (for/list ([post post-lst]) ;; of PostCond
+          #`['#,(AlertSpec-alert-name post)
+               #,(PostCond-cond-expr post)])]
+       [post-checked-r
+        #'(cond-post-checks #:op f (list p ...) 
+                            #:checks (post-check ...)
+                            #:then r)])
       (cond-or-fail
        [(memq 'primitive modifs)
         #'(let-Good-args 

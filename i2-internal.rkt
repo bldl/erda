@@ -39,9 +39,8 @@ generally not a part of the `erda/cxx` language.
 ;; The `v` :: Maybe<Result<T>> field contains an optional wrapped
 ;; value that did not satisfy an invariant.
 (concrete-struct* Bad ResultObj (v)
-  #:transparent
-  #:methods gen:custom-write
-  [(define write-proc Bad-write)])
+  #:methods gen:custom-write [(define write-proc Bad-write)]
+  #:transparent)
 
 (define* (Bad-set-v bad v)
   (struct-copy Bad bad [v v]))
@@ -83,6 +82,10 @@ generally not a part of the `erda/cxx` language.
            (bad-condition #:bad-arg p #'op-id)
            (let-Good-args rest #:op op-id #:then then ...)))]))
 
+;;; 
+;;; alert condition checks
+;;;
+
 (define-syntax* cond-pre-checks
   (syntax-rules ()
     [(_ #:op op args #:checks () #:then then ...)
@@ -96,7 +99,30 @@ generally not a part of the `erda/cxx` language.
           (bad-condition #:precond-alert name #'op args)]
          [else 
           (cond-pre-checks #:op op args #:checks rest #:then then ...)]))]))
-       
+
+(define-syntax sub-cond-post-checks
+  (syntax-rules ()
+    [(_ #:op op args #:checks () #:then r)
+     r]
+    [(_ #:op op args #:checks ([name c-e] . rest) #:then r)
+     (let ([c-v c-e])
+       (cond
+         [(Bad? c-v) 
+          (bad-condition #:bad-postcond c-v #'op r args)]
+         [(Good-v c-v) 
+          (bad-condition #:postcond-alert name #'op r args)]
+         [else 
+          (sub-cond-post-checks #:op op args #:checks rest #:then r)]))]))
+    
+(define-syntax* cond-post-checks
+  (syntax-rules ()
+    [(_ #:op op args #:checks () #:then r)
+     r]
+    [(_ #:op op args #:checks checks #:then r)
+     (syntax-parameterize ([value
+                            (make-rename-transformer #'r)])
+       (sub-cond-post-checks #:op op args #:checks checks #:then r))]))
+    
 ;;; 
 ;;; result `value`
 ;;; 
