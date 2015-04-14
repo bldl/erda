@@ -5,5 +5,5 @@
   '("Programming languages for experimenting with error handling."))
 (define scribblings '(("manual.scrbl" ())))
 (define category '(experimental))
-(define compile-omit-paths '("dist" "retired"))
+(define compile-omit-paths '("dist" "retired" "tests"))
 (define deps '("base" "magnolisp"))

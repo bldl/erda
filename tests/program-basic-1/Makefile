@@ -1,15 +1,18 @@
 default : run
 
+erda.o : ../../erda.cpp ../../erda.hpp
+	g++ -c -Wall -std=c++0x -iquote../.. $< -o $@
+
 program.cpp program.hpp : program.rkt
 	mglc --cxx $<
 
 program.o : program.cpp program.hpp program_config.hpp ../../erda.hpp
-	g++ -c -Wall -std=c++0x -iquote../.. program.cpp
+	g++ -c -Wall -std=c++0x -iquote../.. $<
 
 main.o : main.cpp program.hpp program_config.hpp ../../erda.hpp
-	g++ -c -Wall -std=c++0x -iquote../.. main.cpp
+	g++ -c -Wall -std=c++0x -iquote../.. $<
 
-main : main.o program.o
+main : main.o program.o erda.o
 	g++ $^ -o $@
 
 run : main
