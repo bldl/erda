@@ -4,4 +4,9 @@
 *.swp
 .DS_Store
 *.org_archive
+*.o
+a.out
+main
+program.hpp
+program.cpp
 retired/

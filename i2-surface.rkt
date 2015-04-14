@@ -46,8 +46,7 @@
          let-annotate cast ;; value expressions
          abstract-type ;; miscellaneous
          
-         (rename-out [my-app #%app]) ;; xxx
-         ;;(rename-out [#%plain-app #%app]) ;; xxx temporarily
+         (rename-out [my-app #%app])
          (from-prefixed-out my- quote 
                             if if-not or and cond
                             declare define)
