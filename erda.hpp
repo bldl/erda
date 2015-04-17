@@ -10,6 +10,7 @@
 // --------------------------------------------------
 
 struct mgl_Symbol {
+  mgl_Symbol() = default;
   explicit mgl_Symbol(char const* s) : m_s(s) {}
   std::string m_s;
 };
@@ -106,6 +107,7 @@ struct Result {
   State m_State = BAD_NO_VAL;
   T m_Good_v; // for GOOD and BAD_GOOD_VAL
   std::shared_ptr<Result<T>> m_Bad_v; // for BAD_BAD_VAL
+  AlertName m_name = AlertName("undefined");
 };
 
 template <typename T>
@@ -127,19 +129,24 @@ T Good_v(Result<T> const& w) {
 template <typename T>
 Result<T> Bad(Maybe<Result<T>> const& mwv, AlertName const& name) {
   if (is_Nothing(mwv)) {
-    return Result<T>();
+    Result<T> w;
+    w.m_State = Result<T>::BAD_NO_VAL;
+    w.m_name = name;
+    return w;
   } else {
     Result<T> inner_r = Just_v(mwv);
     if (is_Good(inner_r)) {
       Result<T> w;
       w.m_State = Result<T>::BAD_GOOD_VAL;
       w.m_Good_v = Good_v(inner_r);
+      w.m_name = name;
       return w;
     } else {
       Result<T> w;
       w.m_State = Result<T>::BAD_BAD_VAL;
       // requires Result<T> to have a copy ctor
       w.m_Bad_v = std::make_shared<Result<T>>(inner_r);
+      w.m_name = name;
       return w;
     }
   }
@@ -164,16 +171,21 @@ Maybe<Result<T>> Bad_v(Result<T> const& w) {
 }
 
 template <typename T>
+AlertName Bad_name(Result<T> const& w) {
+  return w.m_name;
+}
+
+template <typename T>
 std::ostream& operator<<(std::ostream& os, Result<T> const& w) {
   switch (w.m_State) {
   case Result<T>::GOOD:
     os << "Good(" << w.m_Good_v << ")"; break;
   case Result<T>::BAD_NO_VAL:
-    os << "Bad(Nothing())"; break;
+    os << "Bad(Nothing()," << w.m_name << ")"; break;
   case Result<T>::BAD_GOOD_VAL:
-    os << "Bad(Just(Good(" << w.m_Good_v << ")))"; break;
+    os << "Bad(Just(Good(" << w.m_Good_v << "))," << w.m_name << ")"; break;
   case Result<T>::BAD_BAD_VAL:
-    os << "Bad(Just(" << *(w.m_Bad_v) << "))"; break;
+    os << "Bad(Just(" << *(w.m_Bad_v) << ")," << w.m_name << ")"; break;
   default:
     assert(0 && "unexpected Result<T>::State");
   }
