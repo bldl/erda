@@ -40,9 +40,8 @@
          let let* letrec
 
          ;; from Magnolisp
-         type export foreign ;; annotations
-         -> exists for-all <> ;; type expressions
-         (rename-out [exists ∃] [for-all ∀])
+         type export foreign literal ;; annotations
+         -> exists for-all ∃ ∀ <> ;; type expressions
          let-annotate cast ;; value expressions
          abstract-type ;; miscellaneous
          

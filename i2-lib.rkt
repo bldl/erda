@@ -42,7 +42,8 @@
 ;;; Erda types
 ;;; 
 
-(define* #:type AlertName #:: (foreign))
+(define* #:type AlertName
+  #:: (foreign [literal (display type-id) "(" (cxx-str datum) ")"]))
 
 ;;; 
 ;;; Racket functions

@@ -9,21 +9,15 @@
 // symbol type
 // --------------------------------------------------
 
-struct mgl_Symbol {
-  mgl_Symbol() = default;
-  explicit mgl_Symbol(char const* s) : m_s(s) {}
+struct AlertName {
+  AlertName() = default;
+  explicit AlertName(char const* s) : m_s(s) {}
   std::string m_s;
 };
 
-inline std::ostream& operator<<(std::ostream& os, mgl_Symbol const& sym) {
+inline std::ostream& operator<<(std::ostream& os, AlertName const& sym) {
   return os << sym.m_s;
 }
-
-inline mgl_Symbol mgl_SYMBOL(char const* s) {
-  return mgl_Symbol(s);
-}
-
-typedef mgl_Symbol AlertName;
 
 // --------------------------------------------------
 // data invariant
