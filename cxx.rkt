@@ -2,12 +2,12 @@
 
 #|
 
-Defines a subset of the the `erda/rvm` language, one that has somewhat
-fewer runtime requirements.
+Defines a statically typed variant of the the `erda/rvm` language,
+one that has somewhat fewer runtime requirements.
 
 |#
 
-(module reader syntax/module-reader 
+(module reader syntax/module-reader
   erda/cxx
   #:wrapper1 (lambda (t)
                (with-magnolisp-readtable

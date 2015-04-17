@@ -20,19 +20,19 @@ test :
 api-doc :
 	-rm -r doc
 	mkdir -p doc/manual
-	scribble ++xref-in setup/xref load-collections-xref --html --dest doc/manual --dest-name index.html manual.scrbl
+	scribble ++xref-in setup/xref load-collections-xref --html --dest doc/manual --dest-name index.html manual-src/manual.scrbl
 
 rm-dist :
 	-rm -r $(DISTHOME)
 
 pdf-manual :
 	mkdir -p $(DISTHOME)
-	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --pdf --dest $(DISTHOME) --dest-name manual.pdf manual.scrbl
+	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --pdf --dest $(DISTHOME) --dest-name manual.pdf manual-src/manual.scrbl
 
 html-manual :
 	-rm -r $(DISTHOME)/manual
 	mkdir -p $(DISTHOME)/manual
-	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --html --dest $(DISTHOME)/manual --dest-name index.html manual.scrbl
+	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --html --dest $(DISTHOME)/manual --dest-name index.html manual-src/manual.scrbl
 
 MIRROR_DIR := /tmp/raco-tmp/$(PKGNAME)
 
