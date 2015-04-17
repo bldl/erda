@@ -39,6 +39,12 @@
 (declare #:type Void #:: ([foreign void]))
 
 ;;; 
+;;; Erda types
+;;; 
+
+(define* #:type AlertName #:: (foreign))
+
+;;; 
 ;;; Racket functions
 ;;; 
 
@@ -83,9 +89,12 @@
 (declare (Good-v w) #:direct
   #:: (foreign [type (∀ T (-> (<> Result T) T))]))
 
-(declare (Bad v) #:direct
-  #:: ([foreign Bad] [type (∀ T (-> (<> Maybe (<> Result T)) (<> Result T)))]))
+(declare (Bad v name) #:direct
+  #:: ([foreign Bad] 
+       [type (∀ T (-> (<> Maybe (<> Result T)) AlertName (<> Result T)))]))
 (declare (Bad? w) #:direct
   #:: (foreign [type (∀ T (-> (<> Result T) Bool))]))
 (declare (Bad-v w) #:direct
   #:: (foreign [type (∀ T (-> (<> Result T) (<> Maybe (<> Result T))))]))
+(declare (Bad-name w) #:direct
+  #:: (foreign [type (∀ T (-> (<> Result T) AlertName))]))

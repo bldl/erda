@@ -31,19 +31,18 @@ generally not a part of the `erda/cxx` language.
 
 (define (Bad-write bad out mode)
   (fprintf out "(Bad")
+  (fprintf out " ~a" (Bad-name bad))
   (let ((val (Bad-v bad)))
     (unless (Nothing? val)
       (fprintf out "«~s»" (Just-v val))))
   (fprintf out ")"))
 
 ;; The `v` :: Maybe<Result<T>> field contains an optional wrapped
-;; value that did not satisfy an invariant.
-(concrete-struct* Bad ResultObj (v)
+;; value that did not satisfy an invariant. The `name` field contains
+;; an alert name symbol.
+(concrete-struct* Bad ResultObj (v name)
   #:methods gen:custom-write [(define write-proc Bad-write)]
   #:transparent)
-
-(define* (Bad-set-v bad v)
-  (struct-copy Bad bad [v v]))
 
 ;; All error conditions are reported through this macro. This means
 ;; that `Bad` values are not created based on their content, but
@@ -51,25 +50,23 @@ generally not a part of the `erda/cxx` language.
 (define-syntax* bad-condition
   (syntax-rules ()
     [(_ #:bad-arg arg op)
-     (Bad (Nothing))]
+     (Bad (Nothing) 'bad-arg)]
     [(_ #:data-invariant v op args)
-     (Bad (Just v))]
+     (Bad (Just v) 'data-invariant)]
     [(_ #:original name op)
-     (Bad (Nothing))]
+     (Bad (Nothing) name)]
     [(_ #:original name op #:value v)
-     (Bad (Just v))]
+     (Bad (Just v) name)]
     [(_ #:original name op #:cause cause)
-     (Bad (Nothing))]
+     (Bad (Nothing) name)]
     [(_ #:precond-alert name op args)
-     (Bad (Nothing))]
+     (Bad (Nothing) name)]
     [(_ #:postcond-alert name op v args)
-     (Bad (Just v))]
+     (Bad (Just v) name)]
     [(_ #:bad-precond cause op args)
-     (Bad (Nothing))]
+     (Bad (Nothing) 'bad-precond)]
     [(_ #:bad-postcond cause op v args)
-     (Bad (Just v))]
-    [(_ #:exception-alert name op args)
-     (Bad (Nothing))]
+     (Bad (Just v) 'bad-postcond)]
     ))
 
 (define-syntax* let-Good-args

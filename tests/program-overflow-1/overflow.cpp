@@ -31,18 +31,18 @@ static Result<int> compute_with(bool (*f)(int, int, int*),
 				Result<int> const& x,
 				Result<int> const& y) {
   if (is_Bad(x)) {
-    return Bad(Nothing<Result<int>>());
+    return Bad(Nothing<Result<int>>(), mgl_SYMBOL("bad-arg"));
   } else if (is_Bad(y)) {
-    return Bad(Nothing<Result<int>>());
+    return Bad(Nothing<Result<int>>(), mgl_SYMBOL("bad-arg"));
   } else {
     int r;
     bool err = (*f)(Good_v(x), Good_v(y), &r);
     if (err) {
-      return Bad(Nothing<Result<int>>());
+      return Bad(Nothing<Result<int>>(), mgl_SYMBOL("div-by-0"));
     } else if (is_data_invariant(r)) {
       return Good(r);
     } else {
-      return Bad(Just(Good(r)));
+      return Bad(Just(Good(r)), mgl_SYMBOL("data-invariant"));
     }
   }
 }

@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
   auto two = Good(2);
   pr("two", two);
 
-  auto bad_one = Bad(Just(one));
+  auto bad_one = Bad(Just(one), mgl_SYMBOL("horrid"));
   pr("bad_one", bad_one);
   
   Result<int> w = run(one, two);

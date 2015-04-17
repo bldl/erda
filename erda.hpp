@@ -6,6 +6,25 @@
 #include <memory>
 
 // --------------------------------------------------
+// symbol type
+// --------------------------------------------------
+
+struct mgl_Symbol {
+  explicit mgl_Symbol(char const* s) : m_s(s) {}
+  std::string m_s;
+};
+
+inline std::ostream& operator<<(std::ostream& os, mgl_Symbol const& sym) {
+  return os << sym.m_s;
+}
+
+inline mgl_Symbol mgl_SYMBOL(char const* s) {
+  return mgl_Symbol(s);
+}
+
+typedef mgl_Symbol AlertName;
+
+// --------------------------------------------------
 // data invariant
 // --------------------------------------------------
 
@@ -106,7 +125,7 @@ T Good_v(Result<T> const& w) {
 }
 
 template <typename T>
-Result<T> Bad(Maybe<Result<T>> const& mwv) {
+Result<T> Bad(Maybe<Result<T>> const& mwv, AlertName const& name) {
   if (is_Nothing(mwv)) {
     return Result<T>();
   } else {
