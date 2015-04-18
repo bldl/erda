@@ -5,7 +5,8 @@
 |#
 
 (require "i2-internal.rkt"
-         (only-in "util.rkt" [define* rdefine*] writeln)
+         (only-in "util.rkt" 
+                  [define* rdefine*] define-syntax-rule* writeln)
          (only-in racket/base 
                   begin-for-syntax define-syntax define-syntax-rule
                   [#%app rapp] not symbol?)
@@ -30,6 +31,13 @@
      (begin
        (define (n p ...) . more)
        (provide n))]))
+
+;;; 
+;;; type expressions
+;;; 
+
+(define-syntax-rule* (->Result t ...)
+  (-> (<> Result t) ...))
 
 ;;; 
 ;;; Magnolisp types
