@@ -72,17 +72,15 @@
 ;; We use this internally (only), and do not export it. Note the use
 ;; of the `not` function here (and below), which means it must be in
 ;; the runtime.
-(define (monadic-not v)
-  (cond-or-fail
-   ((Good? v) (Good (not (Good-v v))))
-   ((Bad? v) (bad-condition #:bad-arg v #'monadic-not))))
+(define-syntax-rule (monadic-not v)
+  (my-app not v))
 
 (define-my-syntax my-not monadic-not not)
 
 (define-syntax (monadic-if stx)
   (syntax-parse stx
     [(_ c:expr t:expr e:expr)
-     #'(let-Good-args 
+     #'(let-Good-args
         ([v c]) #:op monadic-if
         #:then (if (Good-v v) t e))]))
 
