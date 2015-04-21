@@ -33,6 +33,7 @@ html-manual :
 	-rm -r $(DISTHOME)/manual
 	mkdir -p $(DISTHOME)/manual
 	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --html --dest $(DISTHOME)/manual --dest-name index.html manual-src/manual.scrbl
+	sed 's%http://docs.racket-lang.org/[a-z-]*/magnolisp/doc/manual/%http://magnolisp.github.io/%g' --in-place dist/manual/index.html
 
 MIRROR_DIR := /tmp/raco-tmp/$(PKGNAME)
 
