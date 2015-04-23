@@ -5,15 +5,15 @@
 
 (require scribble/manual "../util.rkt")
 
-@(define* ErdaRkt @elem{Erda@subscript{@italic{RVM}}})
-@(define* ErdaRktAssign @elem{Erda@subscript{@italic{RVM}}@superscript{σ}})
-@(define* ErdaCxx @elem{Erda@subscript{@italic{C++}}})
+(define* ErdaRkt @elem{Erda@subscript{@italic{RVM}}})
+(define* ErdaRktAssign @elem{Erda@subscript{@italic{RVM}}@superscript{σ}})
+(define* ErdaCxx @elem{Erda@subscript{@italic{C++}}})
 
 ;;; 
-;;; Racket's syntax
+;;; Racket syntax
 ;;; 
 
-(module m1 racket
+(module Racket-m racket
   (require scribble/manual (for-label racket/base))
   (provide racket/Racket)
   (define-syntax (racket/Racket stx)
@@ -21,17 +21,35 @@
       [(_ datum)
        #`(racket #,(datum->syntax #'here (syntax->datum #'datum)))])))
 
-(require (submod "." m1))
+(require (submod "." Racket-m))
 (provide racket/Racket)
 
 (define-syntax-rule* (Racket-racket datum)
   @elem{Racket's @racket/Racket[datum]})
 
 ;;; 
-;;; Erda_RVM's syntax
+;;; Magnolisp syntax
 ;;; 
 
-(module m2 racket
+(module Magnolisp-m racket
+  (require scribble/manual (for-label (only-meta-in 0 magnolisp)))
+  (provide racket/Magnolisp)
+  (define-syntax (racket/Magnolisp stx)
+    (syntax-case stx ()
+      [(_ datum)
+       #`(racket #,(datum->syntax #'here (syntax->datum #'datum)))])))
+
+(require (submod "." Magnolisp-m))
+(provide racket/Magnolisp)
+
+(define-syntax-rule* (Magnolisp-racket datum)
+  @elem{Magnolisp's @racket/Magnolisp[datum]})
+
+;;; 
+;;; Erda_RVM syntax
+;;; 
+
+(module ErdaRkt-m racket
   (require scribble/manual (for-label erda/rvm))
   (provide racket/ErdaRkt)
   (define-syntax (racket/ErdaRkt stx)
@@ -39,7 +57,7 @@
       [(_ datum)
        #`(racket #,(datum->syntax #'here (syntax->datum #'datum)))])))
 
-(require (submod "." m2))
+(require (submod "." ErdaRkt-m))
 (provide racket/ErdaRkt)
 
 (define-syntax-rule* (ErdaRkt-racket datum)
