@@ -242,9 +242,6 @@ The RVM language, without the reader and the standard library.
   (syntax-parse stx
     [(_ (n:id p ...) #:direct)
      (mk-reg-DirectFunction #'n)]
-    [(_ (n:id p:id ...) #:handler opts:maybe-alerts)
-     (mk-reg-AlertingFunction 
-      #'n '(handler) #'(p ...) (attribute opts.alerts))]
     [(_ (n:id p:id ...) opts:maybe-alerts)
      (mk-reg-AlertingFunction 
       #'n '(primitive) #'(p ...) (attribute opts.alerts))]))
@@ -446,18 +443,16 @@ The RVM language, without the reader and the standard library.
     [(_ f:id a:expr ...)
      (define f-stx #'f)
      (define info (free-id-table-ref fun-meta-table f-stx #f))
-     (cond
-       [(DirectFunction? info)
-        #'(#%app f a ...)]
-       [else
-        (with-syntax 
-          ([app-expr
-            (cond-or-fail
-             [(not info)
-              (mk-UndeclaredFunction-app stx f-stx #'(a ...))]
-             [(AlertingFunction? info)
-              (mk-AlertingFunction-app info stx f-stx #'(a ...))])])
-          #'(on-alert-hook f app-expr))])]))
+     (with-syntax 
+       ([app-expr
+         (cond-or-fail
+          [(not info)
+           (mk-UndeclaredFunction-app stx f-stx #'(a ...))]
+          [(DirectFunction? info)
+           #'(#%app f a ...)]
+          [(AlertingFunction? info)
+           (mk-AlertingFunction-app info stx f-stx #'(a ...))])])
+       #'(on-alert-hook f app-expr))]))
 
 (define-my-syntax my-app monadic-app #%app)
 
@@ -522,7 +517,7 @@ The RVM language, without the reader and the standard library.
                      catch-all-clause))))))]))
 
 ;; Handles any error in the `try-e` expression by evaluating the
-;; `fail-e` expression instead. Equivalent to (try try-e #:catch ex [_
+;; `fail-e` expression instead. Equivalent to (try try-e #:catch [_
 ;; fail-e]).
 (define-syntax* (default stx)
   (syntax-parse stx

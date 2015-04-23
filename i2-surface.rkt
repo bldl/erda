@@ -273,13 +273,6 @@
        #'(begin
            (mgl-declare (n . ps) opts.annos ...)
            reg-DirectFunction))]
-    [(_ (n:id p:id ...) #:handler opts:mgl-annos+alerts?)
-     (with-syntax ([reg-AlertingFunction
-                    (mk-reg-AlertingFunction 
-                     #'n '(handler) #'(p ...) (attribute opts.alerts))])
-       #'(begin
-           (mgl-declare (n p ...) opts.annos ...)
-           reg-AlertingFunction))]
     [(_ (n:id p:id ...) opts:mgl-annos+alerts?)
      (with-syntax ([reg-AlertingFunction
                     (mk-reg-AlertingFunction 

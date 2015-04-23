@@ -3,8 +3,7 @@
 #|
 
 This is a variant of erda/rvm such that it exports `set!`, and a
-modified `if` with optional cleanup actions. There are no other
-conditional forms in this language.
+modified `if` with optional cleanup actions.
 
 |#
 

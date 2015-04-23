@@ -1,4 +1,5 @@
 #lang scribble/manual
+@;;;###action ((master-file . "manual.scrbl") (quiet . t))
 @(require scribble/eval "util.rkt"
 	  (for-label erda/cxx))
 
@@ -25,6 +26,8 @@ The @deftech{@ErdaCxx} language is a statically typed language such that it incl
 ]
 
 This document describes the syntax and semantics a selection of the @|ErdaCxx| constructs.
+
+xxx need to document at least @racket[define] and @racket[declare]; can compare to @ErdaRkt-racket[define] @etc
 
 @; define
 @; declare
