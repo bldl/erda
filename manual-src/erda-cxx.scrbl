@@ -17,7 +17,7 @@ The @deftech{@ErdaCxx} language is a statically typed language such that it incl
 
  @item{Provided that any referenced functions are implemented both for Racket and C++, the definitions appearing in a @racketmodname[erda/cxx] module (or collection thereof) may both be used directly from a Racket program, and translated into a C++ API and implementation usable from C++ programs. In contrast, the definitions appearing in a @racketmodname[erda/rvm] module are only intended for evaluation in the Racket VM.}
 
-  @item{While the @ErdaCxx and @ErdaRkt implementations are largely based on the same code, the former does somewhat more work at compile time. This is to keep the runtime requirements smaller, and thus facilitate translation into C++. The only C++ runtime requirements for the @racketmodname[erda/cxx] language itself are a small subset of the C and C++11 standard libraries, and the @filepath{erda.hpp} header file.}
+ @item{While the @ErdaCxx and @ErdaRkt implementations are largely based on the same code, the former does somewhat more work at compile time. This is to keep the runtime requirements smaller, and thus facilitate translation into C++. The only C++ runtime requirements for the @racketmodname[erda/cxx] language itself are a small subset of the C and C++11 standard libraries, and the @filepath{erda.hpp} header file.}
   
  @item{@ErdaCxx's functions and variables are typed, whereas in @ErdaRkt it is values that are typed. While the static types need not always be declared, the types of a program must be fully resolvable statically. For this purpose, the compiler features Hindley-Milner style type inference.}
 
@@ -36,14 +36,14 @@ This document describes the syntax and semantics a selection of those @|ErdaCxx|
 	   (define (id arg ...) #:direct maybe-annos expr ...+))]{
 Forms used to define types, variables and functions.
 
-These forms have the same semantics as for @ErdaRkt-racket[define], with two notable exceptions. Firstly, there is a @racket[define] @racket[#:type] form, which is the same as for @Magnolisp-racket[define]. Second, all the @racket[define] variants accept optional annotations. The grammar for @racket[maybe-annos] is as described in @secref["Annotations" #:doc '(lib "magnolisp/manual-src/manual.scrbl")].}
+These forms have the same semantics as for @ErdaRkt-racket[define], with three notable exceptions. Firstly, there is a @racket[define] @racket[#:type] form, which is the same as for @Magnolisp-racket[define]. Second, @ErdaCxx does not support the @racketid[on-throw] alert clause; the @racket[maybe-alerts] grammar is otherwise the same as given in the @secref["Alerts"] section. Third, all the @racket[define] variants accept optional annotations; the grammar for @racket[maybe-annos] is as described in @secref["Annotations" #:doc '(lib "magnolisp/manual-src/manual.scrbl")].}
 
 @defform*[((declare #:type id maybe-annos)
            (declare (id arg ...) maybe-annos maybe-alerts)
 	   (declare (id arg ...) #:direct maybe-annos))]{
 Forms used to specify information about types and functions, not to implement them, or to bind the identifier @racket[id]. The binding must already exist.
 
-See @racket[define] for a description of the two notable differences between @ErdaCxx's @racket[declare] compared to @ErdaRkt-racket[declare] and @Magnolisp-racket[declare], as these differences are the same for both @racket[define] and @racket[declare].}
+See @racket[define] for a description of the three notable differences between @ErdaCxx's @racket[declare] compared to @ErdaRkt-racket[declare] and @Magnolisp-racket[declare], as these differences are the same for both @racket[define] and @racket[declare].}
 
 @section{C++ Translation Advising Annotations}
 

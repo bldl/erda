@@ -13,7 +13,7 @@
 
 The @deftech{@ErdaRkt} language is a dynamically typed language that includes an @defterm{alerts} mechanism for declarative error reporting, and transparently propagates errors as data values.
 
-This document describes the syntax and semantics a selection of the @|ErdaRkt|-specific constructs.
+This document describes the syntax and semantics of a selection of the @|ErdaRkt|-specific constructs.
 
 The @racketmodname[erda/rvm] language also inherits a number of constructs directly from Racket, including the @racket[begin], @racket[begin0], @racket[let], @racket[let*], @racket[letrec], @racket[require], and @racket[provide] syntactic forms, and the @racket[not] function. These forms should therefore behave as described in the Racket documentation. Note, however, that functions may seemingly behave differently due to @ErdaRkt's different function application semantics.
 
@@ -35,19 +35,19 @@ The semantics of the @racket[(define id expr)] form is the same as in Racket. In
 
 The second form, which is for defining ``regular'' @ErdaRkt functions, binds @racket[id] as a function that takes arguments @racket[arg ...]. The language enforces that the arguments will all have to be good, wrapped values (i.e., values for which the predicate @racket[good-result?] holds); there is an implicit alert guarding against bad values. Explicit alerts may be specified according to the @racket[maybe-alerts] grammar. The result of the function should be a single wrapped value (i.e., values for which @racket[result?] holds). Indeed, @ErdaRkt does not support multi-value returns, or more generally, multi-value expressions. The language enforces, on the single return value, the data invariant associated with its type; the function application will produce a bad value instead if the invariant does not hold. Explicit post-conditions are treated similarly. The invariants are not checked on bad results.
 
-The @racket[#:handler] variant of the @racket[define] form is like the ``regular'' function definition form, but without the implicit alerts requiring good arguments and a good result. That is, any pre-conditions get evaluated even if some of the arguments are bad, and if they hold, the function gets called. Similarly, any post-conditions (but not data invariant) are also checked on a bad result. The intention is for this kind of function definition to make it possible to implement ``handler'' functions able to process (and perhaps recover from) bad values.
+The @racket[#:handler] variant of the @racket[define] form is like the ``regular'' function definition form, but without the implicit alerts requiring good arguments, or the assumption that post-condition expressions require good free variables. That is, any pre-conditions get evaluated even if some of the arguments are bad, and if they hold, the function gets called. Similarly, any post-conditions (but not data invariant) are also checked on a bad result. The intention is for this kind of function definition to make it possible to implement ``handler'' functions able to process (and perhaps recover from) bad values.
 
-The @racket[#:direct] variant of the form is called directly, without the language doing any pre- or post-processing on the incoming or outgoing values, which are still expected to be wrapped (no data invariants are checked either, so beware). This form of @racket[define] is intended to allow for the implementation of @ErdaRkt functions (such that they are aware of wrapped values) as Racket-based primitives, probably using @Racket-racket[#%plain-app] form as the ``FFI'' for implementing such primitives within the @|ErdaRkt| language. Perhaps more likely, you'll want to implement such primitives in Racket, and instead merely @racket[declare] them as @racket[#:direct].}
+The @racket[#:direct] variant of the form defines a function that is called directly, without the language doing any pre- or post-processing on the incoming or outgoing values, which are still expected to be wrapped (no data invariants is checked either, so beware). This form of @racket[define] is intended to allow for the implementation of @ErdaRkt functions (such that they are aware of wrapped values) as Racket-based primitives, probably using @Racket-racket[#%plain-app] form as the ``FFI'' for implementing such primitives within the @|ErdaRkt| language. Perhaps more likely, you'll want to implement such functions in Racket, and instead merely @racket[declare] them as @racket[#:direct].}
 
 @defform*[((declare (id arg ...) maybe-alerts)
 	   (declare (id arg ...) #:direct))]{
 Forms used to specify information about functions, not to implement them, or to bind the identifier @racket[id]. The binding must already exist.
 
-The first @racket[declare] form declares a Racket primitive that processes unwrapped value, and thus will get automatic unwrapping/wrapping at the application site. Alert clauses may be specified, with any @racket[test-expr] evaluated with the @racket[arg] (and @racket[value], as appropriate) identifiers bound to @emph{wrapped} values; in other words, despite a primitive function being called, the conditional expressions are still written in @|ErdaRkt|. As many existing Racket functions may throw exceptions, it is quite important to specify @racketid[on-throw] alert clauses as appropriate, as a way of converting from such a foreign error reporting mechanism.
+The first @racket[declare] form declares a Racket primitive that processes unwrapped values, and thus will get automatic unwrapping/wrapping at the application site. Alert clauses may be specified, with any @racket[test-expr] evaluated with the @racket[arg] (and @racket[value], as appropriate) identifiers bound to @emph{wrapped} values; in other words, despite a primitive function being called, the conditional expressions are still written in @|ErdaRkt|. As many existing Racket functions may throw exceptions, it is quite important to specify @racketid[on-throw] alert clauses as appropriate, as a way of converting from such a foreign error reporting mechanism.
 
 The second @racket[declare] form is like the @racket[#:direct] @racket[define] form, but without taking an implementation. An implementation must already be bound as the function @racket[id].
 
-It is also possible to call un@racket[declare]d Racket functions, as long as they are bound. Naturally, then, no explicit alerts have been specified, but goodness of arguments is nonetheless enforced, and unwrapped automatically; undeclared functions are expected to process unwrapped values. Exceptions are not checked, but the data invariant of the result value is checked. A broken DI leads to the result being automatically wrapped as a bad value, whereas otherwise it is wrapped as a good value.}
+It is also possible to call un@racket[declare]d Racket functions, as long as they are bound. Naturally, then, no explicit alerts have been specified, but goodness of arguments is nonetheless enforced, and arguments are unwrapped automatically; undeclared functions are expected to process unwrapped values. There is no catching of exceptions, but the data invariant of the result value is checked. A broken DI leads to the result being automatically wrapped as a bad value, whereas otherwise it is wrapped as a good value.}
 
 @subsection{Alerts}
 
@@ -156,8 +156,8 @@ Evaluates the @racket[try-expr] expression, and only if its result is a bad one,
 
 For example:
 @(interaction #:eval the-eval
-   (default 'good 'alternative)
-   (default (raise 'bad) 'alternative))}
+  (default 'good 'alternative)
+  (default (raise 'bad) 'alternative))}
 
 @defform[(on-alert (handler-clause ...) body ...+)
 #:grammar ([handler-clause ((id ...) expr ...+)])]{
@@ -184,12 +184,12 @@ The evaluation of the overall expression immediately stops with a bad value if a
 
 For example:
 @(interaction #:eval the-eval
-   (block 1 2 3)
-   (block [#:let x 1] x)
-   (block [#:let x 1] [#:let x 2] x)
-   (block [#:let x 1] [#:when #t #:let x 2] x)
-   (block [#:let x 1] [#:when #f #:let x 2] x)
-   (block [#:let x (raise 'bad)] [#:when x #:let x 'good] x))
+  (block 1 2 3)
+  (block [#:let x 1] x)
+  (block [#:let x 1] [#:let x 2] x)
+  (block [#:let x 1] [#:when #t #:let x 2] x)
+  (block [#:let x 1] [#:when #f #:let x 2] x)
+  (block [#:let x (raise 'bad)] [#:when x #:let x 'good] x))
 }
 
 @section{Standard Library}
@@ -201,7 +201,7 @@ The documented argument and result types (or predicates, rather) are only for in
 Some functions do have pre- and post-conditions specified with alert clauses, but these are not indicated in the signatures shown here; the signatures here reflect the functions' own ability to handle inputs. It is the @ErdaRkt language itself that does further enforcing, according to explicit or implicit alert conditions.
 
 @defproc[(result? [x any/c]) good-result?]{
-A predicate that holds if @racket[x] is a wrapped value (whether good or bad).}
+A predicate that holds if @racket[x] is a wrapped value (whether good or bad). The result of the predicate is itself wrapped.}
 
 @defproc[(good-result? [x any/c]) good-result?]{
 A predicate that holds if @racket[x] is a good (wrapped) value.}
@@ -214,6 +214,6 @@ For example:
   (bad-result? (raise 'worst)))}
 
 @defproc[(raise [alert-name good-result?]) bad-result?]{
-Creates a new bad value with the specified @racket[alert-name]. The value will have no history beyond the call to this function.}
+Creates a new bad value with the specified @racket[alert-name], passed in as a wrapped symbol. The constructed bad value will have no history beyond the call to this function.}
 
 @(close-eval the-eval)

@@ -5,7 +5,7 @@
 
 @author["Tero Hasu"]
 
-@ErdaRkt, @ErdaRktAssign, and @ErdaCxx constitute a family of small programming languages and implementations for experimenting with error handling mechanisms. We use the unqualified name @defterm{Erda} to refer to the language family as a whole, or any one member of the family where the languages are all alike in relevant respects.
+@ErdaRkt, @ErdaRktAssign, and @ErdaCxx constitute a family of small programming languages and implementations for experimenting with error handling mechanisms. We use the unqualified name @deftech{Erda} to refer to the language family as a whole, or any one member of the family where the languages are all alike in relevant respects.
 
 The ``concrete'' syntax of Erda resembles that of Racket (and Scheme).
 
