@@ -3,13 +3,12 @@
 .\#*
 *.swp
 .DS_Store
-*.org_archive
 local.mk
 *.o
 a.out
 main
 program.hpp
 program.cpp
+compiled/
 dist/
 doc/
-retired/
