@@ -6,7 +6,8 @@ Based on these Clang "checked arithmetic builtins":
   bool __builtin_ssub_overflow  (int x, int y, int *diff);
   bool __builtin_smul_overflow  (int x, int y, int *prod);
 
-These require a fairly recent version of Clang.
+These require a fairly recent version of Clang, or a very recent
+version of GCC (version 5 or so).
 
 Note that "builtin functions must be directly called," i.e., no
 function pointers to them.

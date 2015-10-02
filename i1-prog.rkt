@@ -10,7 +10,7 @@ Some test code written in the erda/rvm language.
 (require (only-in racket/base = < > + - * / add1 sub1
                   exn:fail:contract:divide-by-zero? list
                   [/ throwing-/]))
-(require (only-in "util.rkt" writeln))
+(require (submod magnolisp/util/print export-always))
 
 (define (never-happy a b c)
   #:alert ([unhappy post-when (= 0 0)])

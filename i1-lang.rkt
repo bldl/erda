@@ -23,7 +23,7 @@ The RVM language, without the reader and the standard library.
          
          ;; `require` forms
          require only-in except-in prefix-in rename-in combine-in
-         relative-in only-meta-in
+         relative-in only-meta-in submod
          local-require
          
          ;; `provide` forms

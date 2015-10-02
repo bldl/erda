@@ -10,7 +10,7 @@ primitives.
 |#
 
 (require "i1-internal.rkt"
-         (only-in "util.rkt" [define* rdefine*] writeln)
+         (only-in "util.rkt" [define* rdefine*])
          (only-in racket/base 
                   begin-for-syntax define-syntax define-syntax-rule
                   [#%app rapp] symbol?)

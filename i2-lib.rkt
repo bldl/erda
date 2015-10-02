@@ -6,7 +6,7 @@
 
 (require "i2-internal.rkt"
          (only-in "util.rkt" 
-                  [define* rdefine*] define-syntax-rule* writeln)
+                  [define* rdefine*] define-syntax-rule*)
          (only-in racket/base 
                   begin-for-syntax define-syntax define-syntax-rule
                   [#%app rapp] not symbol?)
