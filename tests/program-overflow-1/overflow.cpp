@@ -39,7 +39,7 @@ static Result<int> compute_with(bool (*f)(int, int, int*),
     int r;
     bool err = (*f)(Good_v(x), Good_v(y), &r);
     if (err) {
-      return Bad(Nothing<Result<int>>(), AlertName("div-by-0"));
+      return Bad(Nothing<Result<int>>(), AlertName("overflow"));
     } else if (is_data_invariant(r)) {
       return Good(r);
     } else {

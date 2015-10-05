@@ -39,4 +39,3 @@ Integer operations that detect overflow.
 
 (define (add-is-sub-is-mul x y) #:: (export)
   (and (add-is-mul x y) (add-is-sub x y)))
-

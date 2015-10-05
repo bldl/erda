@@ -412,11 +412,7 @@ The RVM language, without the reader and the standard library.
                   [(Bad? r)
                    r]
                   [else
-                   (define v (Good-v r))
-                   (if (data-invariant? v)
-                       post-checked-r
-                       (bad-condition #:data-invariant 
-                                      r #'f (list p ...)))]))]))]
+                   post-checked-r]))]))]
        [(memq 'handler modifs)
         #'(let ([p a] ...)
             (cond 
@@ -426,12 +422,9 @@ The RVM language, without the reader and the standard library.
                           (#%plain-app f p ...))])
                  (cond
                    exc-check ...
-                   [(and (Good? r) (not (data-invariant? (Good-v r))))
-                    ;; Note that DI's need not hold for Bad values.
-                    (bad-condition #:data-invariant r #'f (list p ...))]
                    [else
                     ;; Any predicates used in post-conditions really
-                    ;; should be #:handler's also.
+                    ;; should be `#:handler`s also.
                     post-checked-r]))]))]))))
 
 (define-syntax-parameter on-alert-hook
