@@ -201,14 +201,13 @@ The RVM language, without the reader and the standard library.
   
   (define (mk-reg-AlertingFunction n-stx modifs-lst
                                    params-stx alerts-lst)
-    (with-syntax ([n n-stx]
-                  [modifs #`'#,modifs-lst]
+    (with-syntax ([modifs #`'#,modifs-lst]
                   [params params-stx]
                   [(rec ...) (map mk-rec-stx alerts-lst)])
-      #'(begin-for-syntax
+      #`(begin-for-syntax
           (free-id-table-set! 
            fun-meta-table 
-           #'n 
+           #'#,n-stx
            (AlertingFunction modifs #'params (list rec ...)))))))
 
 (define-syntax (my-define stx)
@@ -243,6 +242,7 @@ The RVM language, without the reader and the standard library.
     [(_ (n:id p ...) #:direct)
      (mk-reg-DirectFunction #'n)]
     [(_ (n:id p:id ...) opts:maybe-alerts)
+     ;;(writeln `(storing ,(syntax-e #'n) ,#'n ,(identifier-binding #'n) ,(syntax-local-phase-level)))
      (mk-reg-AlertingFunction 
       #'n '(primitive) #'(p ...) (attribute opts.alerts))]))
 
@@ -251,9 +251,9 @@ The RVM language, without the reader and the standard library.
   (syntax-parse stx
     [(_ n:id ...)
      (for ([n-stx (syntax->list #'(n ...))])
-       (write `(,n-stx ,(free-id-table-ref 
-                         fun-meta-table n-stx
-                         (lambda () 'undeclared))))
+       (write `(declarations-for : ,n-stx ,(free-id-table-ref 
+                                            fun-meta-table n-stx
+                                            (lambda () 'undeclared))))
        (newline))
      #'(begin)]))
 
@@ -443,6 +443,7 @@ The RVM language, without the reader and the standard library.
     [(_ f:id a:expr ...)
      (define f-stx #'f)
      (define info (free-id-table-ref fun-meta-table f-stx #f))
+     ;;(writeln `(querying ,(syntax-e f-stx) ,f-stx ,(identifier-binding f-stx) ,(syntax-local-phase-level) ,info))
      (with-syntax 
        ([app-expr
          (cond-or-fail

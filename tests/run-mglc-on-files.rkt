@@ -26,7 +26,7 @@
     
 (define (compile-mgl-files)
   (for ((bn (directory-list mgl-file-dir))
-        #:when (regexp-match-exact? #rx"test-(?!run-).*[.]rkt" bn))
+        #:when (regexp-match-exact? #rx"test-cxx-.*[.]rkt" bn))
     (define fn (build-path mgl-file-dir bn))
     (compile-mgl-file fn)))
 
