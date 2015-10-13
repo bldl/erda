@@ -8,6 +8,11 @@ default : setup
 
 -include local.mk
 
+# if `make setup` fails, you may need to do `make install` first
+install :
+	raco pkg install --name $(PKGNAME)
+	$(MAKE) setup
+
 setup :
 	raco setup $(PKGNAME)
 	$(MAKE) api-doc
