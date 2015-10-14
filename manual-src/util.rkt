@@ -4,10 +4,25 @@
 |#
 
 (require scribble/manual "../util.rkt")
+(require racket/runtime-path)
 
 (define* ErdaRkt @elem{Erda@subscript{@italic{RVM}}})
 (define* ErdaRktAssign @elem{Erda@subscript{@italic{RVM}}@superscript{σ}})
 (define* ErdaCxx @elem{Erda@subscript{@italic{C++}}})
+
+(define-runtime-path MAGNOLISPGITREV-file
+  "../MAGNOLISPGITREV")
+
+(define* MAGNOLISPGITREV
+  (string-trim
+   (call-with-input-file
+     MAGNOLISPGITREV-file
+     port->string)))
+
+(define* short-MAGNOLISPGITREV
+  (list->string
+   (for/list ((ch (in-string MAGNOLISPGITREV 0 7)))
+     ch)))
 
 ;;; 
 ;;; Racket syntax

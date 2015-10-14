@@ -55,3 +55,12 @@ website-local :
 
 website : rm-dist html-manual pdf-manual pkg website-local
 	chmod -R a+rX $(DISTHOME)
+
+gh-homepage :
+	( cd gh-pages && git clean -d -f && git rm --ignore-unmatch -rf . )
+	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --html --dest gh-pages --dest-name index.html manual-src/manual.scrbl
+	sed -r 's%href="[^"]+/magnolisp/doc/manual/%href="http://magnolisp.github.io/%g' --in-place gh-pages/index.html
+	( cd gh-pages && git add . && git status )
+
+gh-upload :
+	( cd gh-pages && git commit -m "update $$(date)" && git push github gh-pages:gh-pages )

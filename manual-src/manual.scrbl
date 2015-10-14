@@ -24,6 +24,34 @@ Most of the provided sample @ErdaCxx programs will evaluate as is within the Rac
 To run basic tests to verify that the Magnolisp compiler is available and working, you may run:
 @commandline{make test}
 
+@section{Source Code}
+
+A Git repository of the Erda source code can be found at:
+@nested[#:style 'inset]{@url{https://github.com/bldl/erda}}
+
+@section[#:tag "install"]{Installation}
+
+The pre-requisites for installing the software are:
+@itemlist[
+
+ @item{@bold{Racket.} The primary implementation language of Erda. Version 6 (or higher) of Racket is required; a known-compatible version is 6.2.1, but versions 6.1--6.2.1 are all expected to work.}
+
+ @item{@bold{Magnolisp.} A language and compiler serving as a basis for the implementation of @|ErdaCxx|. A known-compatible revision of Magnolisp is @|MAGNOLISPGITREV|.}
+
+]
+
+The software and the documentation can be built from source, or installed using the Racket package manager.
+Racket is required for building and installation.
+
+Once Racket and its tools have been installed, the Magnolisp and Erda packages can be installed with the @exec{raco} commands:
+@nested[#:style 'inset]{
+@verbatim{
+raco pkg install git://github.com/bldl/magnolisp#@|short-MAGNOLISPGITREV|
+raco pkg install git://github.com/bldl/erda
+}}
+
+The above commands should install the library, the command-line tool(s), and a HTML version of the manual.
+
 @section{License}
 
 Except where otherwise noted, the following license applies:

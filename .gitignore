@@ -10,5 +10,6 @@ main
 program.hpp
 program.cpp
 compiled/
-dist/
-doc/
+/dist/
+/doc/
+/gh-pages/
