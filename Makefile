@@ -23,6 +23,9 @@ clean :
 test :
 	raco test --direct --no-run-if-absent tests/run-*.rkt
 
+check-pkg-deps :
+	raco setup --check-pkg-deps $(PKGNAME)
+
 api-doc :
 	mkdir -p doc/manual
 	scribble ++xref-in setup/xref load-collections-xref --html --dest doc/manual --dest-name index.html manual-src/manual.scrbl

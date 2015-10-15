@@ -5,3 +5,4 @@
 (define scribblings '(("manual-src/manual.scrbl" () (experimental))))
 (define compile-omit-paths '("dist" "retired" "tests"))
 (define deps '("base" "magnolisp"))
+(define build-deps '("at-exp-lib" "rackunit-lib" "scribble-lib"))
