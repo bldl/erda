@@ -24,6 +24,9 @@ primitives.
     (define (n p ...) . more)
     (provide n)))
 
+(define* (good-result id) #:direct
+  (rapp Good id))
+
 ;; This predicate should hold for any value as long as one stays
 ;; within the language.
 (define* (result? x) #:direct
