@@ -1,5 +1,5 @@
 #lang scribble/manual
-@;;;###action ((master-file . "manual.scrbl") (quiet . t))
+@;;;###action ((master-file . "erda.scrbl") (quiet . t))
 @(require scribble/eval "util.rkt"
 	  (for-label erda/sigma-rvm))
 

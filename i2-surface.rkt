@@ -42,8 +42,8 @@
          ;; from Magnolisp
          type export foreign literal ;; annotations
          -> exists for-all ∃ ∀ <> ;; type expressions
-         let-annotate cast ;; value expressions
-         abstract-type ;; miscellaneous
+         annotate cast ;; value expressions
+         foreign-type ;; miscellaneous
          
          (rename-out [my-app #%app])
          (from-prefixed-out my- quote 

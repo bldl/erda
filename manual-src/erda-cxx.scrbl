@@ -1,5 +1,5 @@
 #lang scribble/manual
-@;;;###action ((master-file . "manual.scrbl") (quiet . t))
+@;;;###action ((master-file . "erda.scrbl") (quiet . t))
 @(require scribble/eval "util.rkt"
 	  (for-label erda/cxx))
 
@@ -36,7 +36,7 @@ This document describes the syntax and semantics a selection of those @|ErdaCxx|
 	   (define (id arg ...) #:direct maybe-annos expr ...+))]{
 Forms used to define types, variables and functions.
 
-These forms have the same semantics as for @ErdaRkt-racket[define], with three notable exceptions. Firstly, there is a @racket[define] @racket[#:type] form, which is the same as for @Magnolisp-racket[define]. Second, @ErdaCxx does not support the @racketid[on-throw] alert clause; the @racket[maybe-alerts] grammar is otherwise the same as given in the @secref["Alerts"] section. Third, all the @racket[define] variants accept optional annotations; the grammar for @racket[maybe-annos] is as described in @secref["Annotations" #:doc '(lib "magnolisp/manual-src/manual.scrbl")].}
+These forms have the same semantics as for @ErdaRkt-racket[define], with three notable exceptions. Firstly, there is a @racket[define] @racket[#:type] form, which is the same as for @Magnolisp-racket[define]. Second, @ErdaCxx does not support the @racketid[on-throw] alert clause; the @racket[maybe-alerts] grammar is otherwise the same as given in the @secref["Alerts"] section. Third, all the @racket[define] variants accept optional annotations; the grammar for @racket[maybe-annos] is as described in @secref["Annotations" #:doc '(lib "magnolisp/manual-src/magnolisp.scrbl")].}
 
 @defform*[((declare #:type id maybe-annos)
            (declare (id arg ...) maybe-annos maybe-alerts)
@@ -47,7 +47,7 @@ See @racket[define] for a description of the three notable differences between @
 
 @section{C++ Translation Advising Annotations}
 
-Some of the @ErdaCxx defining forms support a subset of the @seclink["Annotations" #:doc '(lib "magnolisp/manual-src/manual.scrbl")]{annotations} that appear in the Magnolisp language. The supported annotations are:
+Some of the @ErdaCxx defining forms support a subset of the @seclink["Annotations" #:doc '(lib "magnolisp/manual-src/magnolisp.scrbl")]{annotations} that appear in the Magnolisp language. The supported annotations are:
 @racket[type], @racket[export], @racket[foreign], and @racket[literal]. The purpose of these annotations is to instruct @|ErdaCxx|-to-C++ translation. Refer to Magnolisp documentation for more details about them.
 
 @(close-eval the-eval)

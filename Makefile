@@ -27,21 +27,22 @@ check-pkg-deps :
 	raco setup --check-pkg-deps $(PKGNAME)
 
 api-doc :
-	mkdir -p doc/manual
-	scribble ++xref-in setup/xref load-collections-xref --html --dest doc/manual --dest-name index.html manual-src/manual.scrbl
+	-rm -r doc
+	mkdir -p doc
+	scribble ++main-xref-in --html --dest doc --dest-name index.html manual-src/erda.scrbl
 
 rm-dist :
 	-rm -r $(DISTHOME)
 
 pdf-manual :
 	mkdir -p $(DISTHOME)
-	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --pdf --dest $(DISTHOME) --dest-name manual.pdf manual-src/manual.scrbl
+	scribble ++main-xref-in --redirect-main http://docs.racket-lang.org/ --pdf --dest $(DISTHOME) --dest-name manual.pdf manual-src/erda.scrbl
 
 html-manual :
 	-rm -r $(DISTHOME)/manual
 	mkdir -p $(DISTHOME)/manual
-	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --html --dest $(DISTHOME)/manual --dest-name index.html manual-src/manual.scrbl
-	sed 's%http://docs.racket-lang.org/[a-z-]*/magnolisp/doc/manual/%http://magnolisp.github.io/%g' --in-place dist/manual/index.html
+	scribble ++main-xref-in --redirect-main http://docs.racket-lang.org/ --html --dest $(DISTHOME)/manual --dest-name index.html manual-src/erda.scrbl
+	sed -r 's%[^"]+/magnolisp/doc/magnolisp/%http://magnolisp.github.io/%g' --in-place $(DISTHOME)/manual/index.html
 
 MIRROR_DIR := /tmp/raco-tmp/$(PKGNAME)
 
@@ -61,9 +62,9 @@ website : rm-dist html-manual pdf-manual pkg website-local
 
 gh-homepage :
 	( cd gh-pages && git clean -d -f && git rm --ignore-unmatch -rf . )
-	scribble ++xref-in setup/xref load-collections-xref --redirect-main http://docs.racket-lang.org/ --html --dest gh-pages --dest-name index.html manual-src/manual.scrbl
-	sed -r 's%href="[^"]+/magnolisp/doc/manual/%href="http://magnolisp.github.io/%g' --in-place gh-pages/index.html
+	scribble ++main-xref-in --redirect-main http://docs.racket-lang.org/ --html --dest gh-pages --dest-name index.html manual-src/erda.scrbl
+	sed -r 's%href="[^"]+/magnolisp/doc/magnolisp/%href="http://magnolisp.github.io/%g' --in-place gh-pages/index.html
 	( cd gh-pages && git add . && git status )
 
 gh-upload :
-	( cd gh-pages && git commit -m "update $$(date)" && git push github gh-pages:gh-pages )
+	( cd gh-pages && git commit -m "update $$(date -u)" && git push github gh-pages:gh-pages )
