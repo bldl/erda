@@ -48,8 +48,8 @@ modified `if` with optional cleanup actions.
 
   (define-my-syntax my-if monadic-if/cleanup if))
 
-(require "i1-lang.rkt" "i1-lib.rkt" (submod "." impl))
-(provide (except-out (all-from-out "i1-lang.rkt") 
+(require "i1-surface.rkt" "i1-lib.rkt" (submod "." impl))
+(provide (except-out (all-from-out "i1-surface.rkt") 
                      if if-not or and cond block)
          (all-from-out "i1-lib.rkt")
          (rename-out [my-if if] [my-when when] [my-unless unless])

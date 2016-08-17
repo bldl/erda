@@ -34,7 +34,7 @@ A Git repository of the Erda source code can be found at:
 The pre-requisites for installing the software are:
 @itemlist[
 
- @item{@bold{Racket.} The primary implementation language of Erda. Version 6.3 (or higher) of Racket is required; a known-compatible version is 6.5, but versions 6.3--6.5 are all expected to work.}
+ @item{@bold{Racket.} The primary implementation language of Erda. Version 6.3 (or higher) of Racket is required; a known-compatible version is 6.5, but versions 6.3--6.6 are all expected to work.}
 
  @item{@bold{Magnolisp.} A language and compiler serving as a basis for the implementation of @|ErdaCxx|. A known-compatible revision of Magnolisp is @|MAGNOLISPGITREV|.}
 

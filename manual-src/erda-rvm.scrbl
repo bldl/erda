@@ -9,7 +9,7 @@
 @title{@ErdaRkt}
 
 @defmodulelang[erda/rvm
-  #:use-sources (erda/i1-lang erda/i1-lib)]
+  #:use-sources (erda/i1-surface erda/i1-lib)]
 
 The @deftech{@ErdaRkt} language is a dynamically typed language that includes an @defterm{alerts} mechanism for declarative error reporting, and transparently propagates errors as data values.
 

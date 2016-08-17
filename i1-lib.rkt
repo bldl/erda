@@ -1,8 +1,8 @@
-#lang s-exp "i1-lang.rkt"
+#lang s-exp "i1-surface.rkt"
 
 #|
 
-The "i1-lang.rkt" language standard library.
+The "i1-surface.rkt" language standard library.
 
 Uses Racket's `#%app` as a Racket FFI mechanism for accessing
 primitives.

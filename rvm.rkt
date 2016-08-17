@@ -24,7 +24,7 @@ With great power comes great responsibility not to break assumptions.
 (module reader syntax/module-reader 
   erda/rvm)
 
-(require "i1-lang.rkt" "i1-lib.rkt")
-(provide (all-from-out "i1-lang.rkt" "i1-lib.rkt"))
+(require "i1-surface.rkt" "i1-lib.rkt")
+(provide (all-from-out "i1-surface.rkt" "i1-lib.rkt"))
 
 (provide #%top-interaction)
