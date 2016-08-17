@@ -510,15 +510,17 @@ The RVM language, without the reader and the standard library.
                      catch-clause ...
                      catch-all-clause))))))]))
 
-;; Handles any error in the `try-e` expression by evaluating the
-;; `fail-e` expression instead. Equivalent to (try try-e #:catch [_
-;; fail-e]).
-(define-syntax* (default stx)
+;; Tries the `try-e` expressions by evaluating them in order, choosing
+;; either the first non-bad result, or defaults to the `fail-e`
+;; expression instead.
+(define-syntax* (::> stx)
   (syntax-parse stx
-    [(_ try-e fail-e)
+    [(_ fail-e:expr)
+     #'fail-e]
+    [(_ try-e:expr . rest)
      #'(let ([v try-e])
          (if (Bad? v)
-             fail-e
+             (::> . rest)
              v))]))
 
 ;;; 

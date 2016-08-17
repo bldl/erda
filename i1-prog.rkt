@@ -241,7 +241,10 @@ Some test code written in the erda/rvm language.
 (raise-with-value 'worse 8)
 (raise-with-cause 'still-worse (raise-with-cause 'even-worse (raise-with-cause 'worse (raise-with-value 'bad 999))))
 
-(default (raise 'bad) (+ 9 1))
+(::> 'default-only)
+(::> 'fine 'wrong)
+(::> (raise 'bad) (+ 9 1))
+(::> (raise 'bad) (raise 'worse) (raise 'horrid) (+ 9 1))
 (default-to-bad (raise-with-value 'worse 11))
 (default-to-bad 12)
 

@@ -151,13 +151,15 @@ For example:
   (try (raise 'bad) #:catch [_ 3]))
 }
 
-@defform[(default try-expr fail-expr)]{
-Evaluates the @racket[try-expr] expression, and only if its result is a bad one, then evaluates the @racket[fail-expr] for the result of the overall expression. Where the result of @racket[try-expr] is good, that becomes the value of the overall expression.
+@defform[(::> try-expr ... fail-expr)]{
+Evaluates the @racket[try-expr] expressions in order, until one of them yields a good value, which then becomes the value of the overall expression. Where no @racket[try-expr] evaluates to a good value, the result of the overall expression is that of @racket[fail-expr].
 
 For example:
 @(interaction #:eval the-eval
-  (default 'good 'alternative)
-  (default (raise 'bad) 'alternative))}
+  (::> 'good 'alternative)
+  (::> (raise 'bad) 'alternative)
+  (::> (raise 'bad) (raise 'worse) 'alternative)
+  (::> (raise 'bad) (::> (raise 'nested-bad)) (raise 'no-good)))}
 
 @defform[(on-alert (handler-clause ...) body ...+)
 #:grammar ([handler-clause ((id ...) expr ...+)])]{
