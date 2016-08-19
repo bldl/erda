@@ -218,4 +218,11 @@ For example:
 @defproc[(raise [alert-name good-result?]) bad-result?]{
 Creates a new bad value with the specified @racket[alert-name], passed in as a wrapped symbol. The constructed bad value will have no history beyond the call to this function.}
 
+@defproc[(raise-with-cause [alert-name good-result?] [cause bad-result?]) bad-result?]{
+Creates a new bad value with the specified @racket[alert-name] and the specified @racket[cause], where @racket[cause] should be a badness that triggered the error being raised. The constructed bad value will have @racket[cause] as a separate ``branch'' of history.
+
+For example:
+@(interaction #:eval the-eval
+  (raise-with-cause 'follow-up (raise 'cause)))}
+
 @(close-eval the-eval)

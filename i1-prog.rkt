@@ -12,6 +12,27 @@ Some test code written in the erda/rvm language.
                   [/ throwing-/]))
 (require (submod magnolisp/util/print export-always))
 
+(define (dont)
+  #:alert ([couldnt pre-when (raise 'no)])
+  'called)
+(dont) ;; => (Bad bad-precond dont)⇐(Bad no raise)
+
+(define (dont2)
+  #:alert ([couldnt pre-when (raise-with-cause 'bad (raise 'bad))])
+  'called)
+(dont2)
+
+(define (div x y) #:alert ([div-by-0 pre-when (= y 0)])
+  (/ x y))
+(div (raise 'bad) 1)
+(div 5 (raise 'bad))
+
+(define (never-42)
+  #:alert ([bad pre-when (raise 'bad)])
+  42)
+
+(never-42)
+
 (define (never-happy a b c)
   #:alert ([unhappy post-when (= 0 0)])
   a)
@@ -245,6 +266,8 @@ Some test code written in the erda/rvm language.
 (::> 'fine 'wrong)
 (::> (raise 'bad) (+ 9 1))
 (::> (raise 'bad) (raise 'worse) (raise 'horrid) (+ 9 1))
+((raise 'bad) . ::> . (raise 'abhorrent))
+((raise 'bad) . ::> . 10)
 (default-to-bad (raise-with-value 'worse 11))
 (default-to-bad 12)
 
