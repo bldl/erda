@@ -3,9 +3,36 @@
 #|
 |#
 
-(require (only-in racket/base writeln displayln))
+(require (only-in racket/base
+                  = < > + - * /
+                  exn:fail:contract:divide-by-zero?
+                  writeln displayln))
+(require (only-in racket/function identity))
+(require (only-in racket/math nan?))
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
+
+(declare (catching-/ x y) #:is /
+  #:alert ([div-by-0 on-throw exn:fail:contract:divide-by-zero?]))
+(declare (pre-/ x y) #:is /
+  #:alert ([div-by-0 pre-when (= y 0)]))
+(declare (post-/ x y) #:is fl/
+  #:alert ([div-by-0 post-when (nan? value)]))
+(declare (bad-pre-/ x y) #:is /
+  #:alert ([div-by-0 pre-unless (catching-/ x y)]))
+
+(catching-/ 1 1)
+(catching-/ 0 1)
+(catching-/ 0 0)
+(pre-/ 1 1)
+(pre-/ 0 1)
+(pre-/ 0 0)
+(post-/ 1.0 1.0)
+(post-/ 0.0 1.0)
+(post-/ 0.0 0.0)
+(bad-pre-/ 1 1)
+(bad-pre-/ 0 1)
+(bad-pre-/ 0 0)
 
 1
 (thunk 2)
@@ -36,3 +63,6 @@ two
 (and 1 2)
 (or 1 2)
 (cond [#f 1] [#:else 2])
+
+(declare (id x) #:is identity #:direct)
+(id 7)

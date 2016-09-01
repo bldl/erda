@@ -12,7 +12,7 @@ The language, without its reader and its standard library.
          racket/generic racket/list 
          racket/match racket/stxparam
          (for-syntax racket/base racket/function
-                     racket/list racket/syntax
+                     racket/list racket/pretty racket/syntax
                      syntax/parse
                      "util.rkt"))
 
@@ -38,7 +38,7 @@ The language, without its reader and its standard library.
          (rename-out [my-datum #%datum] [my-app #%app] [my-quote quote]
                      [my-if if] [my-and and] [my-or or] [my-cond cond]
                      [my-do do]
-                     [my-lambda lambda] [my-thunk thunk])
+                     [my-lambda lambda] [my-lambda λ] [my-thunk thunk])
          begin begin0
          let let* letrec
          value)
@@ -61,8 +61,12 @@ The language, without its reader and its standard library.
 
 (define-my-syntax my-quote monadic-quote quote)
 
-(define-syntax-rule (monadic-lambda (a ...) b ...)
-  (Good (lambda (a ...) b ...)))
+(define-syntax (monadic-lambda stx)
+  (syntax-case stx ()
+    [(_ (a ...) b ...)
+     #`(Good
+        #,(syntax/loc stx
+            (lambda (a ...) b ...)))]))
 
 (define-my-syntax my-lambda monadic-lambda lambda)
 
@@ -139,7 +143,7 @@ The language, without its reader and its standard library.
 
 ;; This function is a `#:handler` in the sense that it allows a bad
 ;; then or else expression, long as it is not used.
-(define (if-then c t-lam e-lam)
+(define* (if-then c t-lam e-lam)
   (cond
     [(Good? c)
      (define v (Good-v c))
@@ -233,31 +237,203 @@ The language, without its reader and its standard library.
 (define-my-syntax my-do monadic-do do)
 
 ;;; 
-;;; Racket exceptions
-;;; 
-
-;; The `name` field contains an alert name (a symbol).
-(struct GotException (name))
-
-(define-syntax-rule (make-Bad-from-exception got fun args)
-  (bad-condition #:exception-alert (GotException-name got) fun args))
-
-;;; 
 ;;; function definition
 ;;; 
 
+(begin-for-syntax
+  (define-syntax-class alert-pre-clause
+    #:description "precondition alert"
+    #:attributes (info)
+    #:datum-literals (pre-when pre-unless)
+    (pattern
+     (n:id pre-when c:expr)
+     #:attr info (list 'pre (syntax-e #'n) #f #'c))
+    (pattern
+     (n:id pre-unless c:expr)
+     #:attr info (list 'pre (syntax-e #'n) #t #'c)))
+
+  (define-syntax-class alert-post-clause
+    #:description "postcondition alert"
+    #:attributes (info)
+    #:datum-literals (post-when post-unless)
+    (pattern
+     (n:id post-when c:expr)
+     #:attr info (list 'post (syntax-e #'n) #f #'c))
+    (pattern
+     (n:id post-unless c:expr)
+     #:attr info (list 'post (syntax-e #'n) #t #'c)))
+
+  (define-syntax-class alert-throws-clause
+    #:description "exception thrown alert"
+    #:attributes (info)
+    #:datum-literals (on-throw)
+    (pattern
+     (n:id on-throw p:expr)
+     #:attr info (list 'on-throw (syntax-e #'n) #'p)))
+
+  (define-splicing-syntax-class alerts-spec
+    #:description "alerts specification"
+    #:attributes (alerts)
+    (pattern
+     (~seq #:alert ((~or pre:alert-pre-clause
+                         post:alert-post-clause
+                         throws:alert-throws-clause) ...))
+     #:attr alerts (append (attribute pre.info)
+                           (attribute post.info)
+                           (attribute throws.info))))
+  
+  (define-splicing-syntax-class maybe-alerts
+    #:attributes (alerts)
+    (pattern 
+     (~optional a:alerts-spec)
+     #:attr alerts (or (attribute a.alerts) '())))
+
+  ;; `alert-name` is a symbol
+  (abstract-struct AlertSpec (alert-name) #:transparent)
+  ;; `cond-expr` is syntax
+  (concrete-struct PreCond AlertSpec (cond-expr) #:transparent)
+  (concrete-struct PostCond AlertSpec (cond-expr) #:transparent)
+  ;; `predicate-expr` is syntax
+  (concrete-struct OnThrow AlertSpec (predicate-expr) #:transparent)
+
+  (define (alert-spec->ast info)
+    (define kind (first info))
+    (define name (second info))
+    (case-or-fail kind
+      [(pre post) ((if (eq? kind 'pre) PreCond PostCond)
+                   name
+                   (if (third info)
+                       #`(my-app not #,(fourth info))
+                       (fourth info)))]
+      [(on-throw) (OnThrow name (third info))])))
+
+;; If an alert expression evaluates to a bad value, or if the
+;; expression holds, then an alert is triggered.
+(define (check-alert alert v)
+  (and (or (not (Good? v)) (Good-v v)) alert))
+
+;; Turns a non-alert-checking expression `e-stx` into an
+;; alert-checking expression, by wrapping the necessary checks around
+;; it. The `kind` argument is one of primitive, regular, handler. The
+;; `param-ids` argument is a list of parameter names (wrapped values,
+;; as used in alerts). The `alert-lst` argument is a list of
+;; `AlertSpec`. The `stx` argument is lexical context and error
+;; reporting context for the expression. The `fun-id` argument is the
+;; name of the function to define. The `e-stx` argument is the
+;; expression to compute the value of the function without alert
+;; checks.
+(define-for-syntax (mk-alerting-expr e-stx stx kind
+                                     fun-id param-ids alert-lst)
+  (define pre-lst (filter PreCond? alert-lst))
+  (define post-lst (filter PostCond? alert-lst))
+  (define throw-lst (filter OnThrow? alert-lst))
+
+  (define/with-syntax fun fun-id)
+  (define/with-syntax (p ...) param-ids)
+  (define/with-syntax args #'(list p ...))
+
+  ;; Check data invariant for primitives.
+  (when (eq? kind 'primitive)
+    (define/with-syntax br (generate-temporary 'br))
+    (define/with-syntax e e-stx)
+    (set! e-stx
+          #'(let [(br e)]
+              (if (data-invariant? br)
+                  (Good br)
+                  (bad-condition #:bad-result fun args)))))
+  
+  ;; Trap exceptions from primitives.
+  (when (and (eq? kind 'primitive)
+             (not (null? throw-lst)))
+    (define/with-syntax e e-stx)
+    (define/with-syntax (exc-clause ...)
+      (for/list ((x throw-lst)) ;; of OnThrow
+                #`[#,(OnThrow-predicate-expr x)
+                   (lambda (exn)
+                     (bad-condition #:exception-alert
+                                    '#,(AlertSpec-alert-name x)
+                                    fun args))]))
+    (set! e-stx #'(with-handlers (exc-clause ...) e)))
+
+  ;; Check for any post-condition alerts.
+  (unless (null? post-lst)
+    (define/with-syntax e e-stx)
+    (define/with-syntax r (generate-temporary 'r))
+    (define/with-syntax (chk ...)
+      (for/list ([post post-lst]) ;; of PostCond
+        #`(check-alert
+           '#,(AlertSpec-alert-name post)
+           #,(PostCond-cond-expr post))))
+    (define/with-syntax (check-bad-r ...)
+      (if (eq? kind 'handler)
+          null
+          (list #'[(Bad? r) r])))
+    (set! e-stx
+          #'(let ([r e])
+              (syntax-parameterize ([value (make-rename-transformer #'r)])
+                (cond
+                  check-bad-r ...
+                  [chk => (lambda (alert)
+                            (bad-condition #:postcond-alert alert fun args r))]
+                  ...
+                  [else r])))))
+
+  ;; Check for any pre-condition alerts.
+  (unless (null? pre-lst)
+    (define/with-syntax e e-stx)
+    (define/with-syntax (chk ...)
+      (for/list ([pre pre-lst]) ;; of PreCond
+        #`(check-alert
+           '#,(AlertSpec-alert-name pre)
+           #,(PreCond-cond-expr pre))))
+    (set! e-stx
+          #'(cond
+              [chk => (lambda (alert)
+                        (bad-condition #:precond-alert alert fun args))]
+              ...
+              [else e])))
+
+  ;; Check for `Bad` arguments.
+  (unless (eq? kind 'handler)
+    (define/with-syntax e e-stx)
+    (set! e-stx
+          #'(cond
+              [(Bad? p) (bad-condition #:bad-arg fun args)] ...
+              [else e])))
+  
+  e-stx)
+  
 (define-syntax (declare stx)
   (syntax-parse stx
-    [(_ (n:id p ...) #:direct tgt:id)
-     #'(define n
+    [(_ (n:id p ...) #:is tgt:id #:direct)
+     (syntax/loc stx
+       (define n
          (my-lambda (p ...)
-           (#%app tgt p ...)))]))
+           (#%app tgt p ...))))]
+    [(_ (n:id p:id ...) #:is tgt:id opts:maybe-alerts)
+     (define param-ids (syntax->list #'(p ...)))
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define/with-syntax (a ...) param-ids)
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(tgt (Good-v a) ...) stx 'primitive
+                         #'n param-ids specs))
+     (define fun-def
+       (quasisyntax/loc stx
+         (define n
+           #,(syntax/loc #'tgt
+               (monadic-lambda (p ...) a-e)))))
+     ;;(pretty-print (syntax->datum fun-def))
+     fun-def]))
 
-(define-syntax (my-define stx)
+(define-syntax (monadic-define stx)
   (syntax-parse stx
     [(_ n:id e:expr)
-     #'(define n e)]
-    [(_ (n:id p:id ...) #:direct b:expr ...+)
-     #'(define n
-         (my-lambda (p ...)
-           b ...))]))
+     (syntax/loc stx
+       (define n e))]
+    [(_ (n:id p ...) #:direct b:expr ...+)
+     (syntax/loc stx
+       (define n
+         (monadic-lambda (p ...) b ...)))]))
+
+;; Note the completely different syntax.
+(define-my-syntax my-define monadic-define define)
