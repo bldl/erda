@@ -31,8 +31,8 @@ The language, without its reader and its standard library.
          for-syntax for-template for-label for-meta
 
          ;; definition forms
-;;         (rename-out [my-define define])
-  ;;       declare
+         (rename-out [my-define define])
+         declare
          
          ;; expression forms
          (rename-out [my-datum #%datum] [my-app #%app]
@@ -194,3 +194,23 @@ The language, without its reader and its standard library.
 
 (define-syntax-rule (make-Bad-from-exception got fun args)
   (bad-condition #:exception-alert (GotException-name got) fun args))
+
+;;; 
+;;; function definition
+;;; 
+
+(define-syntax (declare stx)
+  (syntax-parse stx
+    [(_ (n:id p ...) #:direct tgt:id)
+     #'(define n
+         (my-lambda (p ...)
+           (#%app tgt p ...)))]))
+
+(define-syntax (my-define stx)
+  (syntax-parse stx
+    [(_ n:id e:expr)
+     #'(define n e)]
+    [(_ (n:id p:id ...) #:direct b:expr ...+)
+     #'(define n
+         (my-lambda (p ...)
+           b ...))]))
