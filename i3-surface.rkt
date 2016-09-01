@@ -35,12 +35,11 @@ The language, without its reader and its standard library.
          declare
          
          ;; expression forms
-         (rename-out [my-datum #%datum] [my-app #%app]
-                     [my-quote quote] [my-if if]
+         (rename-out [my-datum #%datum] [my-app #%app] [my-quote quote]
+                     [my-if if] [my-and and] [my-or or] [my-cond cond]
                      [my-lambda lambda] [my-thunk thunk])
          begin begin0
          let let* letrec
-         or and cond
          value)
 
 ;;; 
@@ -134,7 +133,7 @@ The language, without its reader and its standard library.
          (monadic-apply-undeclared fun (list e ...)))]))
 
 ;;; 
-;;; `if`
+;;; `if` and other conditionals
 ;;; 
 
 ;; This function is a `#:handler` in the sense that it allows a bad
@@ -158,6 +157,33 @@ The language, without its reader and its standard library.
      #'(if-then c (my-thunk t) (my-thunk e))]))
 
 (define-my-syntax my-if monadic-if if)
+
+(define-syntax monadic-or
+  (syntax-rules ()
+    [(_) (Good #f)]
+    [(_ e) e]
+    [(_ e0 e ...)
+     (let ([v e0])
+       (monadic-if v v (monadic-or e ...)))]))
+
+(define-my-syntax my-or monadic-or or)
+
+(define-syntax monadic-and
+  (syntax-rules ()
+    [(_) (Good #t)]
+    [(_ e) e]
+    [(_ e0 e ...)
+     (monadic-if e0 (monadic-and e ...) (Good #f))]))
+
+(define-my-syntax my-and monadic-and and)
+
+(define-syntax (monadic-cond stx)
+  (syntax-parse stx
+    [(_ [#:else e:expr]) #'e]
+    [(_ [c:expr t:expr] e ...)
+     #'(monadic-if c t (monadic-cond e ...))]))
+
+(define-my-syntax my-cond monadic-cond cond)
 
 ;;; 
 ;;; recovery chaining
@@ -183,7 +209,7 @@ The language, without its reader and its standard library.
 ;; Error monadic bind. Differs from monads in that `f` takes a wrapped
 ;; (but Good) value.
 (define* >>= ;; M a -> (M b -> M b) -> M b
-  (my-lambda
+  (monadic-lambda
    (v f)
    (cond
      [(and (Good? v) (Good? f))

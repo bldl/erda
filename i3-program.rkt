@@ -32,3 +32,6 @@ two
 (result? two)
 (good-result? two)
 (result-has-value? two)
+
+(and 1 2)
+(or 1 2)
