@@ -35,3 +35,4 @@ two
 
 (and 1 2)
 (or 1 2)
+(cond [#f 1] [#:else 2])

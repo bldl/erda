@@ -13,7 +13,7 @@ The language, without its reader and its standard library.
          racket/match racket/stxparam
          (for-syntax racket/base racket/function
                      racket/list racket/syntax
-                     syntax/id-table syntax/parse
+                     syntax/parse
                      "util.rkt"))
 
 (provide #%module-begin #%top #%expression
@@ -37,6 +37,7 @@ The language, without its reader and its standard library.
          ;; expression forms
          (rename-out [my-datum #%datum] [my-app #%app] [my-quote quote]
                      [my-if if] [my-and and] [my-or or] [my-cond cond]
+                     [my-do do]
                      [my-lambda lambda] [my-thunk thunk])
          begin begin0
          let let* letrec
@@ -218,15 +219,18 @@ The language, without its reader and its standard library.
       (bad-condition #:bad-arg >>= (list v f))])))
 
 ;; Syntactic sugar for `>>=`.
-(define-syntax* (do stx)
+(define-syntax* (monadic-do stx)
   (syntax-parse stx #:datum-literals (<-)
     [(_ e:expr) 
      #'e]
     [(_ (x:id <- e:expr) rest ...+)
-     #'(my-app >>= e (my-lambda (x) (do rest ...)))]
+     #'(monadic-app >>= e (monadic-lambda (x) (monadic-do rest ...)))]
     [(_ e:expr rest ...+)
-     #'(my-app >>= e (my-lambda (_) (do rest ...)))]
+     #'(monadic-app >>= e (monadic-lambda (_) (monadic-do rest ...)))]
     ))
+
+;; Note the completely different syntax.
+(define-my-syntax my-do monadic-do do)
 
 ;;; 
 ;;; Racket exceptions
