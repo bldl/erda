@@ -14,6 +14,14 @@ A language implementation internal API.
                      "util.rkt"))
 
 ;;; 
+;;; functions
+;;;
+
+(concrete-struct*
+ Fun (fun)
+ #:property prop:procedure (struct-field-index fun))
+
+;;; 
 ;;; data invariants
 ;;; 
 

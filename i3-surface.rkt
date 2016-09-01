@@ -62,7 +62,7 @@ The language, without its reader and its standard library.
 (define-my-syntax my-quote monadic-quote quote)
 
 (define-syntax-rule (monadic-lambda (a ...) b ...)
-  (Good (lambda (a ...) b ...)))
+  (Good (Fun (lambda (a ...) b ...))))
 
 (define-my-syntax my-lambda monadic-lambda lambda)
 
@@ -83,6 +83,23 @@ The language, without its reader and its standard library.
 ;;; function application
 ;;; 
 
+;; Calls an unknown primitive, which thus has no declared error
+;; unformation, but unwrapping and wrapping needs to happen in monadic
+;; mode. The `proc` argument must be a `procedure?`, whereas `wargs`
+;; must be wrapped arguments.
+(define (monadic-apply-undeclared proc wargs)
+  (cond
+    [(ormap Bad? wargs)
+     (bad-condition #:bad-arg (Good proc) wargs)]
+    [else
+     (define bargs (map Good-v wargs))
+     (define bresult (apply proc bargs))
+     (cond
+       [(not (data-invariant? bresult))
+        (bad-condition #:bad-result (Good proc) wargs)]
+       [else
+        (Good bresult)])]))
+
 (define (monadic-rt-app wfun . wargs)
   (cond
     [(Bad? wfun)
@@ -93,13 +110,16 @@ The language, without its reader and its standard library.
     [else
      (define fun (Good-v wfun))
      (cond
-       [(not (procedure? fun))
+       [(Fun? fun)
+        ;; Call the thunk that does all alert processing for a function.
+        (apply fun wargs)]
+       [(procedure? fun)
+        ;; Call the thunk that does all alert processing for a function.
+        (monadic-apply-undeclared fun wargs)]
+       [else
         ;; An implicit precondition for function application is that
         ;; the applied function must in fact be a function.
-        (bad-condition #:bad-function wfun wargs)]
-       [else
-        ;; Call the thunk that does all alert processing for a function.
-        (apply fun wargs)])]))
+        (bad-condition #:bad-function wfun wargs)])]))
 
 (define-syntax (monadic-app stx)
   (syntax-parse stx
