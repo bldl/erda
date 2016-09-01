@@ -125,6 +125,25 @@ The language, without its reader and its standard library.
 (define-my-syntax my-app monadic-app #%app)
 
 ;;; 
+;;; direct mode
+;;; 
+
+;; Enables direct mode for a block scope. The `b ...` expressions deal
+;; in bare values, except that native Erda functions work as usual.
+;; The "free variables" and their values should be given as `[p e]
+;; ...` for unwrapping.
+(define-syntax* (anti-do stx)
+  (syntax-parse stx
+    [(_ ([p:id e:expr] ...) b:expr ...+)
+     ;; Define a primitive for history recording.
+     (define/with-syntax fun (generate-temporary 'anti-do))
+     #'(letrec
+           ([fun
+             (lambda (p ...)
+               (begin-direct b ...))])
+         (monadic-apply-undeclared fun (list e ...)))]))
+
+;;; 
 ;;; `if`
 ;;; 
 
