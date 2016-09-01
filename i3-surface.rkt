@@ -147,6 +147,21 @@ The language, without its reader and its standard library.
 ;;; `if`
 ;;; 
 
+;; This function is a `#:handler` in the sense that it allows a bad
+;; then or else expression, long as it is not used.
+(define (if-then c t-lam e-lam)
+  (cond
+    [(Good? c)
+     (define v (Good-v c))
+     (define lam
+       (if v t-lam e-lam))
+     (cond
+       [(Good? lam) ((Good-v lam))]
+       [else
+        (bad-condition #:bad-arg if-then (list c t-lam e-lam))])]
+    [else
+     (bad-condition #:bad-arg if-then (list c t-lam e-lam))]))
+
 (define-syntax (monadic-if stx)
   (syntax-parse stx
     [(_ c:expr t:expr e:expr)
