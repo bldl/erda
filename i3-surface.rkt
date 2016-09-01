@@ -62,7 +62,7 @@ The language, without its reader and its standard library.
 (define-my-syntax my-quote monadic-quote quote)
 
 (define-syntax-rule (monadic-lambda (a ...) b ...)
-  (Good (Fun (lambda (a ...) b ...))))
+  (Good (lambda (a ...) b ...)))
 
 (define-my-syntax my-lambda monadic-lambda lambda)
 
@@ -100,26 +100,21 @@ The language, without its reader and its standard library.
        [else
         (Good bresult)])]))
 
-(define (monadic-rt-app wfun . wargs)
+(define (monadic-rt-app tgt . wargs)
   (cond
-    [(Bad? wfun)
+    [(procedure? tgt) ;; primitive
+     (monadic-apply-undeclared tgt wargs)]
+    [(Good? tgt)
+     (define fun (Good-v tgt))
+     ;; Call the thunk that does all alert processing for a function.
+     (apply fun wargs)]
+    [else
      ;; Badness. Attempt to call a non-function, or a Bad function.
+     ;; An implicit precondition for function application is that
+     ;; the applied function must in fact be a function.
      ;; History will have the same bad function value, and thus the
      ;; same bad condition should arise by repeating the call.
-     (bad-condition #:bad-function wfun wargs)]
-    [else
-     (define fun (Good-v wfun))
-     (cond
-       [(Fun? fun)
-        ;; Call the thunk that does all alert processing for a function.
-        (apply fun wargs)]
-       [(procedure? fun)
-        ;; Call the thunk that does all alert processing for a function.
-        (monadic-apply-undeclared fun wargs)]
-       [else
-        ;; An implicit precondition for function application is that
-        ;; the applied function must in fact be a function.
-        (bad-condition #:bad-function wfun wargs)])]))
+     (bad-condition #:bad-function tgt wargs)]))
 
 (define-syntax (monadic-app stx)
   (syntax-parse stx
