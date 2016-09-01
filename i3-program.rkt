@@ -28,3 +28,7 @@
 (define (make-two) #:direct two)
 two
 (make-two)
+
+(result? two)
+(good-result? two)
+(result-has-value? two)

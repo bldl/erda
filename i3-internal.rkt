@@ -65,11 +65,6 @@ A language implementation internal API.
   [(define write-proc Bad-write)])
 (provide (except-out (struct-out Bad) Bad))
 
-(define-with-contract*
-  (-> Bad? (or/c Result? #f) Bad?)
-  (Bad-set-result bad v)
-  (struct-copy Bad bad [result v]))
-
 ;; All error conditions are reported through this macro, providing as
 ;; much information about the nature of the error as feasible. In the
 ;; `#:raise` cases, (fun . args) should be such that they re-create
@@ -95,6 +90,18 @@ A language implementation internal API.
     [(_ #:exception-alert name fun args)
      (Bad name fun args #f #f)]
     ))
+
+(define-with-contract*
+  (-> Bad? (or/c Result? #f) Bad?)
+  (Bad-set-result bad v)
+  (struct-copy Bad bad [result v]))
+
+(define* (Result-has-immediate-value? x)
+  (cond
+   [(Good? x) #t]
+   [(Bad? x) (and (Bad-result x) #t)]
+   [else (raise-argument-error
+          'Result-has-immediate-value? "Result?" x)]))
 
 ;;; 
 ;;; result `value`
