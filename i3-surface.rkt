@@ -70,16 +70,6 @@ The language, without its reader and its standard library.
   (my-lambda () b ...))
 
 ;;; 
-;;; Racket exceptions
-;;; 
-
-;; The `name` field contains an alert name (a symbol).
-(struct GotException (name))
-
-(define-syntax-rule (make-Bad-from-exception got fun args)
-  (bad-condition #:exception-alert (GotException-name got) fun args))
-
-;;; 
 ;;; function application
 ;;; 
 
@@ -168,3 +158,39 @@ The language, without its reader and its standard library.
      #'(if-then c (my-thunk t) (my-thunk e))]))
 
 (define-my-syntax my-if monadic-if if)
+
+;;; 
+;;; error monadic sequencing
+;;; 
+
+;; Error monadic bind. Differs from monads in that `f` takes a wrapped
+;; (but Good) value.
+(define* >>= ;; M a -> (M b -> M b) -> M b
+  (my-lambda
+   (v f)
+   (cond
+     [(and (Good? v) (Good? f))
+      ((Good-v f) v)]
+     [else
+      (bad-condition #:bad-arg >>= (list v f))])))
+
+;; Syntactic sugar for `>>=`.
+(define-syntax* (do stx)
+  (syntax-parse stx #:datum-literals (<-)
+    [(_ e:expr) 
+     #'e]
+    [(_ (x:id <- e:expr) rest ...+)
+     #'(my-app >>= e (my-lambda (x) (do rest ...)))]
+    [(_ e:expr rest ...+)
+     #'(my-app >>= e (my-lambda (_) (do rest ...)))]
+    ))
+
+;;; 
+;;; Racket exceptions
+;;; 
+
+;; The `name` field contains an alert name (a symbol).
+(struct GotException (name))
+
+(define-syntax-rule (make-Bad-from-exception got fun args)
+  (bad-condition #:exception-alert (GotException-name got) fun args))
