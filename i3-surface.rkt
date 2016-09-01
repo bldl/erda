@@ -160,6 +160,23 @@ The language, without its reader and its standard library.
 (define-my-syntax my-if monadic-if if)
 
 ;;; 
+;;; recovery chaining
+;;; 
+
+;; Tries the `try-e` expressions by evaluating them in order, choosing
+;; either the first non-bad result, or alternatively defaults to the
+;; `fail-e` expression instead.
+(define-syntax* (::> stx)
+  (syntax-parse stx
+    [(_ fail-e:expr)
+     #'fail-e]
+    [(_ try-e:expr . rest)
+     #'(let ([v try-e])
+         (if (Bad? v)
+             (::> . rest)
+             v))]))
+
+;;; 
 ;;; error monadic sequencing
 ;;; 
 
