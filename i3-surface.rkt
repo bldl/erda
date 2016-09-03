@@ -35,7 +35,8 @@ The language, without its reader and its standard library.
          declare
          
          ;; expression forms
-         (rename-out [my-datum #%datum] [my-app #%app] [my-quote quote]
+         (rename-out [my-datum #%datum] [my-app #%app] [my-apply apply]
+                     [my-quote quote]
                      [my-if if] [my-and and] [my-or or] [my-cond cond]
                      [my-do do]
                      [my-lambda lambda] [my-lambda λ] [my-thunk thunk])
@@ -77,27 +78,33 @@ The language, without its reader and its standard library.
 ;;; function application
 ;;; 
 
+(define (wrap-primitive proc)
+  (Good (procedure-rename
+         (lambda wargs
+           (monadic-apply-primitive proc wargs))
+         (object-name proc))))
+
 ;; Calls an unknown primitive, which thus has no declared error
 ;; unformation, but unwrapping and wrapping needs to happen in monadic
 ;; mode. The `proc` argument must be a `procedure?`, whereas `wargs`
-;; must be wrapped arguments.
-(define (monadic-apply-undeclared proc wargs)
+;; must be a list of wrapped arguments.
+(define (monadic-apply-primitive proc wargs)
   (cond
     [(ormap Bad? wargs)
-     (bad-condition #:bad-arg (Good proc) wargs)]
+     (bad-condition #:bad-arg (wrap-primitive proc) wargs)]
     [else
      (define bargs (map Good-v wargs))
      (define bresult (apply proc bargs))
      (cond
        [(not (data-invariant? bresult))
-        (bad-condition #:bad-result (Good proc) wargs)]
+        (bad-condition #:bad-result (wrap-primitive proc) wargs)]
        [else
         (Good bresult)])]))
 
-(define (monadic-rt-app tgt . wargs)
+(define (monadic-app-fun tgt . wargs)
   (cond
     [(procedure? tgt) ;; primitive
-     (monadic-apply-undeclared tgt wargs)]
+     (monadic-apply-primitive tgt wargs)]
     [(Good? tgt)
      (define fun (Good-v tgt))
      ;; Call the thunk that does all alert processing for a function.
@@ -114,9 +121,16 @@ The language, without its reader and its standard library.
   (syntax-parse stx
     [(_ fun:expr args:expr ...)
      ;; Report bad `fun` as a `Bad` value.
-     #'(monadic-rt-app fun args ...)]))
+     #'(monadic-app-fun fun args ...)]))
 
 (define-my-syntax my-app monadic-app #%app)
+
+(define (monadic-apply tgt wargs)
+  (define args (Good-v wargs))
+  ;;(writeln (cons tgt args))
+  (apply monadic-app-fun tgt args))
+  
+(define-my-syntax my-apply monadic-apply apply)
 
 ;;; 
 ;;; direct mode
@@ -135,7 +149,7 @@ The language, without its reader and its standard library.
            ([fun
              (lambda (p ...)
                (begin-direct b ...))])
-         (monadic-apply-undeclared fun (list e ...)))]))
+         (monadic-apply-primitive fun (list e ...)))]))
 
 ;;; 
 ;;; `if` and other conditionals
@@ -143,23 +157,25 @@ The language, without its reader and its standard library.
 
 ;; This function is a `#:handler` in the sense that it allows a bad
 ;; then or else expression, long as it is not used.
-(define* (if-then c t-lam e-lam)
-  (cond
-    [(Good? c)
-     (define v (Good-v c))
-     (define lam
-       (if v t-lam e-lam))
-     (cond
-       [(Good? lam) ((Good-v lam))]
-       [else
-        (bad-condition #:bad-arg if-then (list c t-lam e-lam))])]
-    [else
-     (bad-condition #:bad-arg if-then (list c t-lam e-lam))]))
+(define* if-then
+  (monadic-lambda
+   (c t-lam e-lam)
+   (cond
+     [(Good? c)
+      (define v (Good-v c))
+      (define lam
+        (if v t-lam e-lam))
+      (cond
+        [(Good? lam) ((Good-v lam))]
+        [else
+         (bad-condition #:bad-arg if-then (list c t-lam e-lam))])]
+     [else
+      (bad-condition #:bad-arg if-then (list c t-lam e-lam))])))
 
 (define-syntax (monadic-if stx)
   (syntax-parse stx
     [(_ c:expr t:expr e:expr)
-     #'(if-then c (my-thunk t) (my-thunk e))]))
+     #'(monadic-app if-then c (my-thunk t) (my-thunk e))]))
 
 (define-my-syntax my-if monadic-if if)
 
@@ -364,9 +380,8 @@ The language, without its reader and its standard library.
 ;; error reporting context for the expression. The `fun-id` argument
 ;; is the name of the function to define. The `e-stx` argument is the
 ;; expression to compute the value of the function without alert
-;; checks. The `params-stx` argument is syntax for a list of
-;; parameters to check for goodness, or #f if no such check is to be
-;; made.
+;; checks. The `params-stx` argument is syntax for parameters to check
+;; for goodness, or #f if no such check is to be made.
 (define-for-syntax (mk-alerting-expr e-stx stx kind
                                      fun-id args-stx alert-lst
                                      params-stx)
@@ -438,14 +453,26 @@ The language, without its reader and its standard library.
               ...
               [else e])))
 
-  ;; Check for `Bad` arguments.
+  ;; Check for `Bad` arguments, as specified by `params-stx`.
   (when params-stx
-    (define/with-syntax (p ...) params-stx)
     (define/with-syntax e e-stx)
     (set! e-stx
-          #'(cond
-              [(Bad? p) (bad-condition #:bad-arg fun args)] ...
-              [else e])))
+          (syntax-parse params-stx
+            [(p:id ...)
+             #'(cond
+                 [(or (Bad? p) ...)
+                  (bad-condition #:bad-arg fun args)]
+                 [else e])]
+            [(p:id ... . rest:id)
+             #'(cond
+                 [(or (Bad? p) ... (ormap Bad? rest))
+                  (bad-condition #:bad-arg fun args)]
+                 [else e])]
+            [rest:id
+             #'(cond
+                 [(ormap Bad? rest)
+                  (bad-condition #:bad-arg fun args)]
+                 [else e])])))
   
   e-stx)
   
@@ -461,13 +488,21 @@ The language, without its reader and its standard library.
      (define/with-syntax a-e
        (mk-alerting-expr #'(tgt (Good-v p) ...) stx 'primitive
                          #'n #'(list p ...) specs #'(p ...)))
-     (define fun-def
-       (quasisyntax/loc stx
-         (define n
-           #,(syntax/loc #'tgt
-               (monadic-lambda (p ...) a-e)))))
-     ;;(pretty-print (syntax->datum fun-def))
-     fun-def]))
+     (quasisyntax/loc stx
+       (define n
+         #,(syntax/loc #'tgt
+             (monadic-lambda (p ...) a-e))))]
+    [(_ (n:id p:id ... . rest:id) #:is tgt:id opts:maybe-alerts)
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(apply tgt (Good-v p) ... (map Good-v rest))
+                         stx 'primitive
+                         #'n #'(list* p ... rest) specs #'(p ... . rest)))
+     (quasisyntax/loc stx
+       (define n
+         #,(syntax/loc #'tgt
+             (monadic-lambda (p ... . rest) a-e))))]
+    ))
 
 (define-syntax (monadic-define stx)
   (syntax-parse stx
@@ -488,6 +523,15 @@ The language, without its reader and its standard library.
        (define n
          #,(syntax/loc #'n
              (monadic-lambda (p ...) a-e))))]
+    [(_ (n:id p:id ... . rest:id) #:handler opts:maybe-alerts b:expr ...+)
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'handler
+                         #'n #'(list* p ... rest) specs #f))
+     (quasisyntax/loc stx
+       (define n
+         #,(syntax/loc #'n
+             (monadic-lambda (p ... . rest) a-e))))]
     [(_ (n:id p:id ...) opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
@@ -497,28 +541,16 @@ The language, without its reader and its standard library.
        (define n
          #,(syntax/loc #'n
              (monadic-lambda (p ...) a-e))))]
+    [(_ (n:id p:id ... . rest:id) opts:maybe-alerts b:expr ...+)
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'regular
+                         #'n #'(list* p ... rest) specs #'(p ... . rest)))
+     (quasisyntax/loc stx
+       (define n
+         #,(syntax/loc #'n
+             (monadic-lambda (p ... . rest) a-e))))]
     ))
 
 ;; Note the completely different syntax.
 (define-my-syntax my-define monadic-define define)
-
-;;; 
-;;; redoing
-;;; 
-
-(provide redo redo-app redo-apply)
-
-(monadic-define (redo v) #:direct
-  (if (Bad? v)
-      (apply monadic-rt-app (Bad-fun v) (Bad-args v))
-      (bad-condition #:bad-arg redo (list v))))
-
-(monadic-define (redo-apply v args) #:direct
-  (if (and (Bad? v) (Good? args) (list? (Good-v args)))
-      (apply monadic-rt-app (Bad-fun v) (Good-v args))
-      (bad-condition #:bad-arg redo-apply (cons v args))))
-
-(monadic-define (redo-app v . args) #:direct
-  (if (Bad? v)
-      (apply monadic-rt-app (Bad-fun v) args)
-      (bad-condition #:bad-arg redo-app (cons v args))))

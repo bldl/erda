@@ -8,18 +8,28 @@ The language standard library.
 
 (require "i3-internal.rkt"
          (only-in "util.rkt" [define* rdefine*])
-         (only-in racket/base 
+         (only-in racket/base [list rlist] map andmap ormap
+                  [if rif] [or ror] [and rand]
                   begin-for-syntax define-syntax define-syntax-rule
-                  quote-syntax symbol? list
-                  [#%app rapp])
+                  quote-syntax not symbol? [apply rapply] [#%app rapp])
          (only-in racket/bool symbol=?)
          (for-syntax racket/base syntax/parse))
 
 (define-syntax-rule
-  (define* (n p ...) . more)
+  (define* (n . p) . more)
   (begin
-    (define (n p ...) . more)
+    (define (n . p) . more)
     (provide n)))
+
+(define-syntax-rule
+  (declare* (n . p) . more)
+  (begin
+    (declare (n . p) . more)
+    (provide n)))
+
+;;; 
+;;; wrapped-value inspection
+;;;
 
 (define* (result? x) #:direct
   (rapp Good (rapp Result? x)))
@@ -46,7 +56,7 @@ The language standard library.
 
 (define* (bad-result-fun x) #:handler
   #:alert ([bad-arg pre-unless (bad-result? x)])
-  (rapp Good (rapp Bad-fun x)))
+  (rapp Bad-fun x))
 
 (define* (bad-result-args x) #:handler
   #:alert ([bad-arg pre-unless (bad-result? x)])
@@ -56,6 +66,10 @@ The language standard library.
   #:alert ([bad-arg pre-unless (result-has-value? x)])
   (rapp Result-immediate-value x))
 
+;;; 
+;;; recovery
+;;; 
+
 ;; Where possible, recovers from `v` being a bad value by turning it
 ;; into a good value.
 (define* (default-to-bad v) #:handler
@@ -63,18 +77,98 @@ The language standard library.
       (result-value v)
       v))
 
+;;; 
+;;; "throwing"
+;;; 
+
 (define* (raise x)
   #:alert ([bad-arg pre-unless (alert-name? x)])
-  (bad-condition #:raise (rapp Good-v x) raise (rapp list x)))
+  (bad-condition #:raise (rapp Good-v x) raise (rapp rlist x)))
 
 (define* (raise-with-value x v)
   #:alert ([bad-arg pre-unless (alert-name? x)])
   (bad-condition #:raise (rapp Good-v x)
-                 raise-with-value (rapp list x v)
+                 raise-with-value (rapp rlist x v)
                  #:value v))
 
 (define* (raise-with-cause x cause) #:handler
   #:alert ([bad-arg pre-unless (and (alert-name? x) (bad-result? cause))])
   (bad-condition #:raise (rapp Good-v x)
-                 raise-with-cause (rapp list x cause)
+                 raise-with-cause (rapp rlist x cause)
                  #:cause cause))
+
+;;; 
+;;; lists and pairs
+;;;
+
+(require
+ (prefix-in rkt. (only-in racket/base
+                          null null?
+                          list?
+                          length
+                          cons pair? car cdr)))
+                          
+(rdefine* null
+  (rapp Good rkt.null))
+
+(declare* (null? x) #:is rkt.null?)
+
+(declare* (list . args) #:is rlist)
+
+(declare* (list? x) #:is rkt.list?)
+
+(declare* (length lst) #:is rkt.length
+  #:alert ([bad-arg pre-unless (list? lst)]))
+
+(declare* (cons x y) #:is rkt.cons)
+
+(declare* (pair? x) #:is rkt.pair?)
+
+(declare* (car p) #:is rkt.car
+  #:alert ([bad-arg pre-unless (pair? p)]))
+
+(declare* (cdr p) #:is rkt.cdr
+  #:alert ([bad-arg pre-unless (pair? p)]))
+
+;;; 
+;;; argument list manipulation
+;;; 
+
+(define* (args-list? x)
+  (let ((x (rapp Good-v x)))
+    (rif (rand (rapp rkt.list? x) (rapp andmap Result? x)) #t #f)))
+
+(define* (args-list . args) #:handler
+  #:alert ([bad-arg pre-unless (rapp Good (rapp andmap Result? args))])
+  (rapp Good args))
+
+(define* (args-cons x args) #:handler
+  #:alert ([bad-arg pre-unless (and (result? x) (list? args))])
+  (rapp Good (rapp rkt.cons x (rapp Good-v args))))
+
+(define* (args-car args)
+  (rapp rkt.car (rapp Good-v args)))
+
+(define* (args-cdr args)
+  #:alert ([bad-arg pre-unless (pair? args)])
+  (rapp Good (rapp rkt.cdr (rapp Good-v args))))
+
+(define* (args-replace-first v args) #:handler
+  #:alert ([bad-arg pre-unless (pair? args)])
+  (args-cons v (args-cdr args)))
+
+;;; 
+;;; redoing
+;;; 
+
+(define* (redo v) #:handler
+  #:alert ([bad-arg pre-unless (bad-result? v)])
+  (apply (bad-result-fun v) (bad-result-args v)))
+
+(define* (redo-apply v args) #:handler
+  #:alert ([bad-arg pre-unless (and (bad-result? v) (args-list? args))])
+  (apply (bad-result-fun v) args))
+
+(define* (redo-app v . args) #:handler
+  #:alert ([bad-arg pre-unless (bad-result? v)])
+  (apply (bad-result-fun v) (rapp Good args)))

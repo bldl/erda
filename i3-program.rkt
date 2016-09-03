@@ -3,19 +3,70 @@
 #|
 |#
 
-(require (only-in racket/base
-                  = < > + - * / not
-                  exn:fail:contract:divide-by-zero?
+(require (only-in racket/base [#%app rapp]
+                  = < > + - * / not add1 sub1
+                  exn:fail:contract:divide-by-zero? exit
                   writeln displayln))
 (require (only-in racket/function identity))
+(require (only-in racket/list first second third))
 (require (only-in racket/math nan?))
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+(define bad-if (if (raise 'bad) 1 0))
+(redo-app bad-if #t (thunk 1) (thunk 0))
+(redo-apply bad-if (args-replace-first #t (bad-result-args bad-if)))
+(if #t 1 0)
+bad-if
+(redo bad-if)
+(bad-result-args bad-if)
+(args-replace-first #t (bad-result-args bad-if))
+
+(define b1 (car (list)))
+b1
+(bad-result-fun b1)
+(bad-result-args b1)
+  
+(redo (car (list)))
+
+(define bad+1 (add1 (raise 'bad)))
+bad+1
+(redo bad+1)
+
 (let ((x (raise 'bad)))
   (redo x))
 (let ((x (raise 'bad)))
-  (redo-with x 'worse))
+  (redo-app x 'worse))
+
+(args-list? (args-list 1 2))
+(args-list? (args-list (raise 'bad)))
+(apply add1 (args-list 1))
+(apply + (args-list 1 2))
+
+(let ((bad (if (raise 'bad) 1 0)))
+  (args-replace-first #t (bad-result-args bad)))
+
+(args-replace-first 1 2)
+(args-replace-first (raise 'worse) (args-list (raise 'bad) 1 (raise 'fair)))
+
+(list)
+(list 1)
+(list 1 2 3)
+(list? (list 1 2))
+(car (list))
+
+(try 1 #:catch)
+(try 1 #:catch [_ (add1 value)])
+(try 1 2 #:catch)
+(try 1 3 #:catch [(bad worse horrible) 9])
+(try (raise 'bad) #:catch [(worse horrible) 9])
+(try (raise 'bad) #:catch [(bad worse horrible) 9])
+(try (raise 'bad) 1 #:catch)
+(try (raise 'bad) #:catch)
+(try (raise 'bad) #:catch [(worse) 9] [(bad) 10] [_ 11])
+(try (raise 'horrible) #:catch [(worse) 9] [(bad) 10] [_ 11])
+(try (raise 'horrible) #:catch [(worse) 9] [(bad) 10] [_ value])
+(try (raise-with-value 'bad 10) #:catch [(worse) 9] [(bad) (default-to-bad value)] [_ 11])
 
 (raise 'bad)
 (raise 'worse)

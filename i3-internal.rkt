@@ -39,7 +39,7 @@ A language implementation internal API.
   (if (Good? val) (Good-v val) val))
 
 (define (Bad-write v out mode)
-  (fprintf out "(Bad ~a:" (Bad-name v))
+  (fprintf out "(Bad ~a" (Bad-name v))
   (define fun (Bad-fun v))
   (fprintf out " ~s" (bare-Good fun))
   (for ((arg (Bad-args v)))
@@ -53,12 +53,12 @@ A language implementation internal API.
     (fprintf out "⇐~s" cause)))
 
 ;; The `name` field contains any alert name symbol. The `fun` field
-;; has a value of the failed operation, usually a wrapped `procedure`,
-;; but can be almost anything, and also unwrapped. The `args` field
-;; has the argument values of the function, as wrapped values. The
-;; `result` is any invariant breaking result of the function
-;; application as a wrapped value, or #f if none. The `cause` `cause`
-;; is any other `Bad`ness that caused the error, or #f if none.
+;; has a value of the failed operation, as a wrapped `procedure`. The
+;; `args` field has the argument values of the function, as wrapped
+;; values. The `result` is any invariant breaking result of the
+;; function application as a wrapped value, or #f if none. The `cause`
+;; `cause` is any other `Bad`ness that caused the error, or #f if
+;; none.
 (struct Bad Result (name fun args result cause)
   #:transparent
   #:methods gen:custom-write
