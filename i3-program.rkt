@@ -12,6 +12,11 @@
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+(let ((x (raise 'bad)))
+  (redo x))
+(let ((x (raise 'bad)))
+  (redo-with x 'worse))
+
 (raise 'bad)
 (raise 'worse)
 

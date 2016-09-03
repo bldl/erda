@@ -63,10 +63,10 @@ The language, without its reader and its standard library.
 
 (define-syntax (monadic-lambda stx)
   (syntax-case stx ()
-    [(_ (a ...) b ...)
+    [(_ ps b ...)
      #`(Good
         #,(syntax/loc stx
-            (lambda (a ...) b ...)))]))
+            (lambda ps b ...)))]))
 
 (define-my-syntax my-lambda monadic-lambda lambda)
 
@@ -315,22 +315,24 @@ The language, without its reader and its standard library.
 ;; Turns a non-alert-checking expression `e-stx` into an
 ;; alert-checking expression, by wrapping the necessary checks around
 ;; it. The `kind` argument is one of primitive, regular, handler. The
-;; `param-ids` argument is a list of parameter names (wrapped values,
-;; as used in alerts). The `alert-lst` argument is a list of
-;; `AlertSpec`. The `stx` argument is lexical context and error
-;; reporting context for the expression. The `fun-id` argument is the
-;; name of the function to define. The `e-stx` argument is the
+;; `args-stx` argument is an expression giving an argument list
+;; (wrapped values, as used in alerts). The `alert-lst` argument is a
+;; list of `AlertSpec`. The `stx` argument is lexical context and
+;; error reporting context for the expression. The `fun-id` argument
+;; is the name of the function to define. The `e-stx` argument is the
 ;; expression to compute the value of the function without alert
-;; checks.
+;; checks. The `params-stx` argument is syntax for a list of
+;; parameters to check for goodness, or #f if no such check is to be
+;; made.
 (define-for-syntax (mk-alerting-expr e-stx stx kind
-                                     fun-id param-ids alert-lst)
+                                     fun-id args-stx alert-lst
+                                     params-stx)
   (define pre-lst (filter PreCond? alert-lst))
   (define post-lst (filter PostCond? alert-lst))
   (define throw-lst (filter OnThrow? alert-lst))
 
   (define/with-syntax fun fun-id)
-  (define/with-syntax (p ...) param-ids)
-  (define/with-syntax args #'(list p ...))
+  (define/with-syntax args args-stx)
 
   ;; Check data invariant for primitives.
   (when (eq? kind 'primitive)
@@ -394,7 +396,8 @@ The language, without its reader and its standard library.
               [else e])))
 
   ;; Check for `Bad` arguments.
-  (unless (eq? kind 'handler)
+  (when params-stx
+    (define/with-syntax (p ...) params-stx)
     (define/with-syntax e e-stx)
     (set! e-stx
           #'(cond
@@ -411,12 +414,10 @@ The language, without its reader and its standard library.
          (my-lambda (p ...)
            (#%app tgt p ...))))]
     [(_ (n:id p:id ...) #:is tgt:id opts:maybe-alerts)
-     (define param-ids (syntax->list #'(p ...)))
      (define specs (map alert-spec->ast (attribute opts.alerts)))
-     (define/with-syntax (a ...) param-ids)
      (define/with-syntax a-e
-       (mk-alerting-expr #'(tgt (Good-v a) ...) stx 'primitive
-                         #'n param-ids specs))
+       (mk-alerting-expr #'(tgt (Good-v p) ...) stx 'primitive
+                         #'n #'(list p ...) specs #'(p ...)))
      (define fun-def
        (quasisyntax/loc stx
          (define n
@@ -430,26 +431,24 @@ The language, without its reader and its standard library.
     [(_ n:id e:expr)
      (syntax/loc stx
        (define n e))]
-    [(_ (n:id p ...) #:direct b:expr ...+)
+    [(_ (n:id . p) #:direct b:expr ...+)
      (syntax/loc stx
        (define n
-         (monadic-lambda (p ...) b ...)))]
+         (monadic-lambda p b ...)))]
     [(_ (n:id p:id ...) #:handler opts:maybe-alerts b:expr ...+)
-     (define param-ids (syntax->list #'(p ...)))
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'handler
-                         #'n param-ids specs))
+                         #'n #'(list p ...) specs #f))
      (quasisyntax/loc stx
        (define n
          #,(syntax/loc #'n
              (monadic-lambda (p ...) a-e))))]
     [(_ (n:id p:id ...) opts:maybe-alerts b:expr ...+)
-     (define param-ids (syntax->list #'(p ...)))
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'regular
-                         #'n param-ids specs))
+                         #'n #'(list p ...) specs #'(p ...)))
      (quasisyntax/loc stx
        (define n
          #,(syntax/loc #'n
@@ -458,3 +457,19 @@ The language, without its reader and its standard library.
 
 ;; Note the completely different syntax.
 (define-my-syntax my-define monadic-define define)
+
+;;; 
+;;; redoing
+;;; 
+
+(provide redo redo-with)
+
+(monadic-define (redo v) #:direct
+  (if (Bad? v)
+      (apply monadic-rt-app (Bad-fun v) (Bad-args v))
+      (bad-condition #:bad-arg redo (list v))))
+
+(monadic-define (redo-with v . args) #:direct
+  (if (Bad? v)
+      (apply monadic-rt-app (Bad-fun v) args)
+      (bad-condition #:bad-arg redo-with (cons v args))))
