@@ -103,6 +103,14 @@ A language implementation internal API.
    [else (raise-argument-error
           'Result-has-immediate-value? "Result?" x)]))
 
+(define* (Result-immediate-value x)
+  (match x
+    [(? Good?) x]
+    [(? Bad? (app Bad-result (? values v))) v]
+    [_ (raise-argument-error
+        'Result-immediate-value
+        "(and/c Result? Result-has-immediate-value?)" x)]))
+
 ;;; 
 ;;; result `value`
 ;;; 

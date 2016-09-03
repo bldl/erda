@@ -12,6 +12,9 @@
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+(raise 'bad)
+(raise 'worse)
+
 (define (my-/ x y)
   #:alert ([div-by-0 pre-when (= y 0)])
   (/ x y))

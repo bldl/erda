@@ -10,7 +10,7 @@ The language standard library.
          (only-in "util.rkt" [define* rdefine*])
          (only-in racket/base 
                   begin-for-syntax define-syntax define-syntax-rule
-                  quote-syntax symbol?
+                  quote-syntax symbol? list
                   [#%app rapp])
          (only-in racket/bool symbol=?)
          (for-syntax racket/base syntax/parse))
@@ -32,3 +32,41 @@ The language standard library.
 
 (define* (result-has-value? x) #:direct
   (rapp Good (rapp Result-has-immediate-value? x)))
+
+(define* (alert-name? x)
+  (rapp Good (rapp symbol? (rapp Good-v x))))
+
+(define* (alert-name=? x y)
+  #:alert ([bad-arg pre-unless (and (alert-name? x) (alert-name? y))])
+  (rapp Good (rapp symbol=? (rapp Good-v x) (rapp Good-v y))))
+
+(define* (alert-name-of x) #:handler
+  #:alert ([bad-arg pre-unless (bad-result? x)])
+  (rapp Good (rapp Bad-name x)))
+
+(define* (value-of-result x) #:handler 
+  #:alert ([bad-arg pre-unless (result-has-value? x)])
+  (rapp Result-immediate-value x))
+
+;; Where possible, recovers from `v` being a bad value by turning it
+;; into a good value.
+(define* (default-to-bad v) #:handler
+  (if (and (bad-result? v) (result-has-value? v))
+      (value-of-result v)
+      v))
+
+(define* (raise x)
+  #:alert ([bad-arg pre-unless (alert-name? x)])
+  (bad-condition #:raise (rapp Good-v x) raise (rapp list x)))
+
+(define* (raise-with-value x v)
+  #:alert ([bad-arg pre-unless (alert-name? x)])
+  (bad-condition #:raise (rapp Good-v x)
+                 raise-with-value (rapp list x v)
+                 #:value v))
+
+(define* (raise-with-cause x cause) #:handler
+  #:alert ([bad-arg pre-unless (and (alert-name? x) (bad-result? cause))])
+  (bad-condition #:raise (rapp Good-v x)
+                 raise-with-cause (rapp list x cause)
+                 #:cause cause))
