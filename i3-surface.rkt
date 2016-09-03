@@ -433,7 +433,28 @@ The language, without its reader and its standard library.
     [(_ (n:id p ...) #:direct b:expr ...+)
      (syntax/loc stx
        (define n
-         (monadic-lambda (p ...) b ...)))]))
+         (monadic-lambda (p ...) b ...)))]
+    [(_ (n:id p:id ...) #:handler opts:maybe-alerts b:expr ...+)
+     (define param-ids (syntax->list #'(p ...)))
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'handler
+                         #'n param-ids specs))
+     (quasisyntax/loc stx
+       (define n
+         #,(syntax/loc #'n
+             (monadic-lambda (p ...) a-e))))]
+    [(_ (n:id p:id ...) opts:maybe-alerts b:expr ...+)
+     (define param-ids (syntax->list #'(p ...)))
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'regular
+                         #'n param-ids specs))
+     (quasisyntax/loc stx
+       (define n
+         #,(syntax/loc #'n
+             (monadic-lambda (p ...) a-e))))]
+    ))
 
 ;; Note the completely different syntax.
 (define-my-syntax my-define monadic-define define)

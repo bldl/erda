@@ -4,13 +4,21 @@
 |#
 
 (require (only-in racket/base
-                  = < > + - * /
+                  = < > + - * / not
                   exn:fail:contract:divide-by-zero?
                   writeln displayln))
 (require (only-in racket/function identity))
 (require (only-in racket/math nan?))
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
+
+(define (my-/ x y)
+  #:alert ([div-by-0 pre-when (= y 0)])
+  (/ x y))
+
+(my-/ 1 1)
+(my-/ 0 1)
+(my-/ 0 0)
 
 (declare (catching-/ x y) #:is /
   #:alert ([div-by-0 on-throw exn:fail:contract:divide-by-zero?]))
@@ -33,6 +41,13 @@
 (bad-pre-/ 1 1)
 (bad-pre-/ 0 1)
 (bad-pre-/ 0 0)
+
+(define (fourty-two x) #:handler
+  #:alert ([not-bad pre-unless (bad-result? x)])
+  42)
+
+(fourty-two (pre-/ 0 1))
+(fourty-two (pre-/ 0 0))
 
 1
 (thunk 2)
