@@ -40,11 +40,19 @@ The language standard library.
   #:alert ([bad-arg pre-unless (and (alert-name? x) (alert-name? y))])
   (rapp Good (rapp symbol=? (rapp Good-v x) (rapp Good-v y))))
 
-(define* (alert-name-of x) #:handler
+(define* (bad-result-alert-name x) #:handler
   #:alert ([bad-arg pre-unless (bad-result? x)])
   (rapp Good (rapp Bad-name x)))
 
-(define* (value-of-result x) #:handler 
+(define* (bad-result-fun x) #:handler
+  #:alert ([bad-arg pre-unless (bad-result? x)])
+  (rapp Good (rapp Bad-fun x)))
+
+(define* (bad-result-args x) #:handler
+  #:alert ([bad-arg pre-unless (bad-result? x)])
+  (rapp Good (rapp Bad-args x)))
+
+(define* (result-value x) #:handler 
   #:alert ([bad-arg pre-unless (result-has-value? x)])
   (rapp Result-immediate-value x))
 
@@ -52,7 +60,7 @@ The language standard library.
 ;; into a good value.
 (define* (default-to-bad v) #:handler
   (if (and (bad-result? v) (result-has-value? v))
-      (value-of-result v)
+      (result-value v)
       v))
 
 (define* (raise x)
