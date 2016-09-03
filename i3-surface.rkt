@@ -191,12 +191,12 @@ The language, without its reader and its standard library.
 (define-my-syntax my-cond monadic-cond cond)
 
 ;;; 
-;;; recovery chaining
+;;; recovery
 ;;; 
 
-;; Tries the `try-e` expressions by evaluating them in order, choosing
-;; either the first non-bad result, or alternatively defaults to the
-;; `fail-e` expression instead.
+;; A recovery chaining form. Tries the `try-e` expressions by
+;; evaluating them in order, choosing either the first non-bad result,
+;; or alternatively defaults to the `fail-e` expression instead.
 (define-syntax* (::> stx)
   (syntax-parse stx
     [(_ fail-e:expr)
@@ -206,6 +206,49 @@ The language, without its reader and its standard library.
          (if (Bad? v)
              (::> . rest)
              v))]))
+
+;; A more traditional `try`/`#:catch` form.
+(define-syntax* (try stx)
+  (define-syntax-class catch 
+    #:description "#:catch clause for a `try`"
+    #:attributes (info)
+    (pattern
+     ((a:id ...) h:expr ...+)
+     #:attr info (list (syntax->list #'(a ...))
+                       (syntax->list #'(h ...)))))
+  
+  (define-syntax-class catch-all
+    #:description "#:catch clause for a `try`"
+    #:attributes (then)
+    (pattern
+     ((~datum _) h:expr ...+)
+     #:attr then (syntax->list #'(h ...))))
+
+  (syntax-parse stx
+    [(_ b:expr ...+ #:catch cc:catch ... (~optional ec:catch-all))
+     (define r-stx (generate-temporary 'r))
+     (with-syntax ([r r-stx])
+       (with-syntax 
+         ([(catch-clause ...)
+           (for/list ([info (attribute cc.info)])
+             (define name-ids (first info))
+             (define then-stx-lst (second info))
+             (with-syntax ([(a ...) name-ids]
+                           [(then ...) then-stx-lst])
+               #'[(or (Result-contains-name? r (quote a)) ...)
+                  then ...]))]
+          [catch-all-clause
+           (let ([then-stx-lst (attribute ec.then)])
+             (if then-stx-lst
+                 #`[else #,@then-stx-lst]
+                 #'[else r]))])
+         #'(let ([r (begin b ...)])
+             (if (Good? r) r
+                 (syntax-parameterize ([value
+                                        (make-rename-transformer #'r)])
+                   (cond
+                     catch-clause ...
+                     catch-all-clause))))))]))
 
 ;;; 
 ;;; error monadic sequencing
@@ -432,9 +475,10 @@ The language, without its reader and its standard library.
      (syntax/loc stx
        (define n e))]
     [(_ (n:id . p) #:direct b:expr ...+)
-     (syntax/loc stx
+     (quasisyntax/loc stx
        (define n
-         (monadic-lambda p b ...)))]
+         #,(syntax/loc #'n
+             (monadic-lambda p b ...))))]
     [(_ (n:id p:id ...) #:handler opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
@@ -462,14 +506,19 @@ The language, without its reader and its standard library.
 ;;; redoing
 ;;; 
 
-(provide redo redo-with)
+(provide redo redo-app redo-apply)
 
 (monadic-define (redo v) #:direct
   (if (Bad? v)
       (apply monadic-rt-app (Bad-fun v) (Bad-args v))
       (bad-condition #:bad-arg redo (list v))))
 
-(monadic-define (redo-with v . args) #:direct
+(monadic-define (redo-apply v args) #:direct
+  (if (and (Bad? v) (Good? args) (list? (Good-v args)))
+      (apply monadic-rt-app (Bad-fun v) (Good-v args))
+      (bad-condition #:bad-arg redo-apply (cons v args))))
+
+(monadic-define (redo-app v . args) #:direct
   (if (Bad? v)
       (apply monadic-rt-app (Bad-fun v) args)
-      (bad-condition #:bad-arg redo-with (cons v args))))
+      (bad-condition #:bad-arg redo-app (cons v args))))

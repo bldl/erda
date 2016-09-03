@@ -111,6 +111,19 @@ A language implementation internal API.
         'Result-immediate-value
         "(and/c Result? Result-has-immediate-value?)" x)]))
 
+;; Our `try` construct matches by searching for an alert name
+;; recursively.
+(define-with-contract*
+  (-> Result? symbol? boolean?)
+  (Result-contains-name? v n)
+  (define (f? v)
+    (and (Bad? v)
+         (or
+          (eq? n (Bad-name v))
+          (f? (Bad-fun v))
+          (ormap f? (Bad-args v)))))
+  (f? v))
+
 ;;; 
 ;;; result `value`
 ;;; 
