@@ -117,11 +117,17 @@ The language, without its reader and its standard library.
      ;; same bad condition should arise by repeating the call.
      (bad-condition #:bad-function tgt wargs)]))
 
+(define-syntax-parameter on-alert-hook
+  (syntax-rules ()
+    [(_ _ e) e]))
+
 (define-syntax (monadic-app stx)
   (syntax-parse stx
     [(_ fun:expr args:expr ...)
+     (define/with-syntax app-expr
+       #'(monadic-app-fun fun args ...))
      ;; Report bad `fun` as a `Bad` value.
-     #'(monadic-app-fun fun args ...)]))
+     #'(on-alert-hook fun app-expr)]))
 
 (define-my-syntax my-app monadic-app #%app)
 
