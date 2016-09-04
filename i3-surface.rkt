@@ -139,6 +139,86 @@ The language, without its reader and its standard library.
 (define-my-syntax my-apply monadic-apply apply)
 
 ;;; 
+;;; on-alert
+;;;
+
+(define-for-syntax (as-syntax x)
+  (cond
+    ((syntax? x) #`(quote-syntax #,x))
+    ((list? x) #`(list #,@(map as-syntax x)))
+    (else (raise-argument-error
+           'as-syntax "(or/c syntax? list?)" x))))
+
+;; As an optimization, this macro only expands to a call to the
+;; recovery function `recover` where the operation ID `op-id` of the
+;; operation expression `op-e` is on the list of IDs `(can-id ...)`
+;; supported by the recovery function.
+(define-syntax (maybe-recover stx)
+  (syntax-parse stx
+    [(_ (can-id:id ...+) recover:id op-id:id op-e:expr)
+     (cond
+       [(ormap (curry free-identifier=? #'op-id)
+               (syntax->list #'(can-id ...)))
+        #'(recover #'op-id op-e)]
+       [else
+        #'op-e])]))
+
+(define-syntax-parameter on-alert-lst '())
+
+(define-syntax* (on-alert stx)
+  (define-syntax-class clause
+    #:description "handler clause"
+    #:attributes (info)
+    (pattern
+     [(op:id ...) hnd:expr ...+]
+     #:attr info (list (syntax->list #'(op ...))
+                       (syntax->list #'(hnd ...)))))
+
+  ;; Produces syntax for an anonymous function which might do some
+  ;; context-sensitive recovery on a Bad input value.
+  (define (make-recover-lam lst)
+    ;;(printf "`on-alert` handlers: ~s~n" lst)
+    (with-syntax ([bad (generate-temporary 'bad)]
+                  [(cond-clause ...)
+                   (for/list ([spec lst])
+                     (with-syntax ([(decl-op ...) (first spec)]
+                                   [(action ...) (second spec)])
+                       #'[(or (free-identifier=? op-id #'decl-op) ...)
+                          action ...]))])
+      (define r
+        #'(lambda (op-id bad)
+            (syntax-parameterize ([value
+                                   (make-rename-transformer #'bad)])
+              (cond
+                [(Good? bad) bad]
+                cond-clause ...
+                [else bad]))))
+      ;;(pretty-print (syntax->datum r))
+      r))
+  
+  (syntax-parse stx
+    ((_ (c:clause ...) e:expr ...+)
+     (define lst (append
+                  (reverse (attribute c.info))
+                  (syntax-parameter-value #'on-alert-lst)))
+     (cond
+       ((null? lst)
+        #'(let () e ...))
+       (else
+        (with-syntax ([new-lst (as-syntax lst)]
+                      [(can-id ...) (apply append (map first lst))]
+                      [recover-lam (make-recover-lam lst)])
+          #'(let ([recover recover-lam])
+              (syntax-parameterize ([on-alert-lst new-lst]
+                                    [on-alert-hook
+                                     (syntax-rules ()
+                                       [(_ op-id op-e)
+                                        (maybe-recover 
+                                         (can-id ...) recover 
+                                         op-id op-e)])])
+                e ...))))))))
+
+;;; 
 ;;; direct mode
 ;;; 
 

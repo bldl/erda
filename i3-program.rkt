@@ -13,6 +13,19 @@
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+(define (f1) 
+  (raise 'f1-error))
+(define (f2) 
+  (raise 'f2-error))
+(on-alert ([(f1) 7]) (f1)) ;; 7
+(on-alert () 5 6) ;; 6
+(on-alert () 5 (raise-with-value 'bad 6))
+(on-alert ([(f1) 'outer-f1])
+  (on-alert ([(f2) 'only-f2])
+    (writeln (list (f1) (f2)))
+    (on-alert ([(f1) 'inner-f1])
+      (writeln (list (f1) (f2))))))
+
 (define bad-0 (raise-with-value 'bad 0))
 (>>= 7 (lambda (x) (rkt.add1 x)))
 (do [x <- 7] (rkt.add1 x))
