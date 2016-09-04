@@ -13,7 +13,7 @@ The language, without its reader and its standard library.
          racket/match racket/stxparam
          (for-syntax racket/base racket/function
                      racket/list racket/pretty racket/syntax
-                     syntax/parse
+                     syntax/id-set syntax/parse
                      "util.rkt"))
 
 (provide #%module-begin #%top #%expression
@@ -76,7 +76,25 @@ The language, without its reader and its standard library.
 
 ;;; 
 ;;; function application
-;;; 
+;;;
+
+;; (free-id-set/c identifier? #:mutability 'mutable)
+(define-for-syntax known-fun-set (mutable-free-id-set))
+
+(define-syntax-rule (set-known-fun! fun)
+  (begin-for-syntax
+    (free-id-set-add! known-fun-set #'fun)))
+
+(define-syntax (define/known stx)
+  (syntax-parse stx
+    [(_ (n:id . ps) . rest)
+     #'(begin
+         (define (n . ps) . rest)
+         (set-known-fun! n))]
+    [(_ n:id . rest)
+     #'(begin
+         (define n . rest)
+         (set-known-fun! n))]))
 
 (define (wrap-primitive proc)
   (Good (procedure-rename
@@ -123,11 +141,14 @@ The language, without its reader and its standard library.
 
 (define-syntax (monadic-app stx)
   (syntax-parse stx
-    [(_ fun:expr args:expr ...)
+    [(_ fun:id args:expr ...)
      (define/with-syntax app-expr
-       #'(monadic-app-fun fun args ...))
-     ;; Report bad `fun` as a `Bad` value.
-     #'(on-alert-hook fun app-expr)]))
+       (if (free-id-set-member? known-fun-set #'fun)
+           #'((Good-v fun) args ...) ;; direct call to a known function
+           #'(monadic-app-fun fun args ...)))
+     #'(on-alert-hook fun app-expr)]
+    [(_ fun:expr args:expr ...)
+     #'(monadic-app-fun fun args ...)]))
 
 (define-my-syntax my-app monadic-app #%app)
 
@@ -241,9 +262,11 @@ The language, without its reader and its standard library.
 ;;; `if` and other conditionals
 ;;; 
 
+(provide if-then)
+
 ;; This function is a `#:handler` in the sense that it allows a bad
 ;; then or else expression, long as it is not used.
-(define* if-then
+(define/known if-then
   (monadic-lambda
    (c t-lam e-lam)
    (cond
@@ -477,7 +500,7 @@ The language, without its reader and its standard library.
   (syntax-parse stx
     [(_ (n:id p ...) #:is tgt:id #:direct)
      (syntax/loc stx
-       (define n
+       (define/known n
          (my-lambda (p ...)
            (#%app tgt p ...))))]
     [(_ (n:id p:id ...) #:is tgt:id opts:maybe-alerts)
@@ -486,7 +509,7 @@ The language, without its reader and its standard library.
        (mk-alerting-expr #'(tgt (Good-v p) ...) stx 'primitive
                          #'n #'(list p ...) specs #'(p ...)))
      (quasisyntax/loc stx
-       (define n
+       (define/known n
          #,(syntax/loc #'tgt
              (monadic-lambda (p ...) a-e))))]
     [(_ (n:id p:id ... . rest:id) #:is tgt:id opts:maybe-alerts)
@@ -496,7 +519,7 @@ The language, without its reader and its standard library.
                          stx 'primitive
                          #'n #'(list* p ... rest) specs #'(p ... . rest)))
      (quasisyntax/loc stx
-       (define n
+       (define/known n
          #,(syntax/loc #'tgt
              (monadic-lambda (p ... . rest) a-e))))]
     ))
@@ -508,7 +531,7 @@ The language, without its reader and its standard library.
        (define n e))]
     [(_ (n:id . p) #:direct b:expr ...+)
      (quasisyntax/loc stx
-       (define n
+       (define/known n
          #,(syntax/loc #'n
              (monadic-lambda p b ...))))]
     [(_ (n:id p:id ...) #:handler opts:maybe-alerts b:expr ...+)
@@ -517,7 +540,7 @@ The language, without its reader and its standard library.
        (mk-alerting-expr #'(begin b ...) stx 'handler
                          #'n #'(list p ...) specs #f))
      (quasisyntax/loc stx
-       (define n
+       (define/known n
          #,(syntax/loc #'n
              (monadic-lambda (p ...) a-e))))]
     [(_ (n:id p:id ... . rest:id) #:handler opts:maybe-alerts b:expr ...+)
@@ -526,7 +549,7 @@ The language, without its reader and its standard library.
        (mk-alerting-expr #'(begin b ...) stx 'handler
                          #'n #'(list* p ... rest) specs #f))
      (quasisyntax/loc stx
-       (define n
+       (define/known n
          #,(syntax/loc #'n
              (monadic-lambda (p ... . rest) a-e))))]
     [(_ (n:id p:id ...) opts:maybe-alerts b:expr ...+)
@@ -535,7 +558,7 @@ The language, without its reader and its standard library.
        (mk-alerting-expr #'(begin b ...) stx 'regular
                          #'n #'(list p ...) specs #'(p ...)))
      (quasisyntax/loc stx
-       (define n
+       (define/known n
          #,(syntax/loc #'n
              (monadic-lambda (p ...) a-e))))]
     [(_ (n:id p:id ... . rest:id) opts:maybe-alerts b:expr ...+)
@@ -544,7 +567,7 @@ The language, without its reader and its standard library.
        (mk-alerting-expr #'(begin b ...) stx 'regular
                          #'n #'(list* p ... rest) specs #'(p ... . rest)))
      (quasisyntax/loc stx
-       (define n
+       (define/known n
          #,(syntax/loc #'n
              (monadic-lambda (p ... . rest) a-e))))]
     ))
