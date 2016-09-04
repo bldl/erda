@@ -207,95 +207,6 @@ The language, without its reader and its standard library.
 (define-my-syntax my-cond monadic-cond cond)
 
 ;;; 
-;;; recovery
-;;; 
-
-;; A recovery chaining form. Tries the `try-e` expressions by
-;; evaluating them in order, choosing either the first non-bad result,
-;; or alternatively defaults to the `fail-e` expression instead.
-(define-syntax* (::> stx)
-  (syntax-parse stx
-    [(_ fail-e:expr)
-     #'fail-e]
-    [(_ try-e:expr . rest)
-     #'(let ([v try-e])
-         (if (Bad? v)
-             (::> . rest)
-             v))]))
-
-;; A more traditional `try`/`#:catch` form.
-(define-syntax* (try stx)
-  (define-syntax-class catch 
-    #:description "#:catch clause for a `try`"
-    #:attributes (info)
-    (pattern
-     ((a:id ...) h:expr ...+)
-     #:attr info (list (syntax->list #'(a ...))
-                       (syntax->list #'(h ...)))))
-  
-  (define-syntax-class catch-all
-    #:description "#:catch clause for a `try`"
-    #:attributes (then)
-    (pattern
-     ((~datum _) h:expr ...+)
-     #:attr then (syntax->list #'(h ...))))
-
-  (syntax-parse stx
-    [(_ b:expr ...+ #:catch cc:catch ... (~optional ec:catch-all))
-     (define r-stx (generate-temporary 'r))
-     (with-syntax ([r r-stx])
-       (with-syntax 
-         ([(catch-clause ...)
-           (for/list ([info (attribute cc.info)])
-             (define name-ids (first info))
-             (define then-stx-lst (second info))
-             (with-syntax ([(a ...) name-ids]
-                           [(then ...) then-stx-lst])
-               #'[(or (Result-contains-name? r (quote a)) ...)
-                  then ...]))]
-          [catch-all-clause
-           (let ([then-stx-lst (attribute ec.then)])
-             (if then-stx-lst
-                 #`[else #,@then-stx-lst]
-                 #'[else r]))])
-         #'(let ([r (begin b ...)])
-             (if (Good? r) r
-                 (syntax-parameterize ([value
-                                        (make-rename-transformer #'r)])
-                   (cond
-                     catch-clause ...
-                     catch-all-clause))))))]))
-
-;;; 
-;;; error monadic sequencing
-;;; 
-
-;; Error monadic bind. Differs from monads in that `f` takes a wrapped
-;; (but Good) value.
-(define* >>= ;; M a -> (M b -> M b) -> M b
-  (monadic-lambda
-   (v f)
-   (cond
-     [(and (Good? v) (Good? f))
-      ((Good-v f) v)]
-     [else
-      (bad-condition #:bad-arg >>= (list v f))])))
-
-;; Syntactic sugar for `>>=`.
-(define-syntax* (monadic-do stx)
-  (syntax-parse stx #:datum-literals (<-)
-    [(_ e:expr) 
-     #'e]
-    [(_ (x:id <- e:expr) rest ...+)
-     #'(monadic-app >>= e (monadic-lambda (x) (monadic-do rest ...)))]
-    [(_ e:expr rest ...+)
-     #'(monadic-app >>= e (monadic-lambda (_) (monadic-do rest ...)))]
-    ))
-
-;; Note the completely different syntax.
-(define-my-syntax my-do monadic-do do)
-
-;;; 
 ;;; function definition
 ;;; 
 
@@ -554,3 +465,88 @@ The language, without its reader and its standard library.
 
 ;; Note the completely different syntax.
 (define-my-syntax my-define monadic-define define)
+
+;;; 
+;;; recovery
+;;; 
+
+;; A recovery chaining form. Tries the `try-e` expressions by
+;; evaluating them in order, choosing either the first non-bad result,
+;; or alternatively defaults to the `fail-e` expression instead.
+(define-syntax* (::> stx)
+  (syntax-parse stx
+    [(_ fail-e:expr)
+     #'fail-e]
+    [(_ try-e:expr . rest)
+     #'(let ([v try-e])
+         (if (Bad? v)
+             (::> . rest)
+             v))]))
+
+;; A more traditional `try`/`#:catch` form.
+(define-syntax* (try stx)
+  (define-syntax-class catch 
+    #:description "#:catch clause for a `try`"
+    #:attributes (info)
+    (pattern
+     ((a:id ...) h:expr ...+)
+     #:attr info (list (syntax->list #'(a ...))
+                       (syntax->list #'(h ...)))))
+  
+  (define-syntax-class catch-all
+    #:description "#:catch clause for a `try`"
+    #:attributes (then)
+    (pattern
+     ((~datum _) h:expr ...+)
+     #:attr then (syntax->list #'(h ...))))
+
+  (syntax-parse stx
+    [(_ b:expr ...+ #:catch cc:catch ... (~optional ec:catch-all))
+     (define r-stx (generate-temporary 'r))
+     (with-syntax ([r r-stx])
+       (with-syntax 
+         ([(catch-clause ...)
+           (for/list ([info (attribute cc.info)])
+             (define name-ids (first info))
+             (define then-stx-lst (second info))
+             (with-syntax ([(a ...) name-ids]
+                           [(then ...) then-stx-lst])
+               #'[(or (Result-contains-name? r (quote a)) ...)
+                  then ...]))]
+          [catch-all-clause
+           (let ([then-stx-lst (attribute ec.then)])
+             (if then-stx-lst
+                 #`[else #,@then-stx-lst]
+                 #'[else r]))])
+         #'(let ([r (begin b ...)])
+             (if (Good? r) r
+                 (syntax-parameterize ([value
+                                        (make-rename-transformer #'r)])
+                   (cond
+                     catch-clause ...
+                     catch-all-clause))))))]))
+
+;;; 
+;;; error monadic sequencing
+;;; 
+
+(provide >>=)
+
+;; Error monadic bind. Differs from monads in that `f` takes a wrapped
+;; (but Good) value.
+(monadic-define (>>= v f) ;; M a -> (M b -> M b) -> M b
+  (monadic-app f v))
+
+;; Syntactic sugar for `>>=`.
+(define-syntax* (monadic-do stx)
+  (syntax-parse stx #:datum-literals (<-)
+    [(_ e:expr) 
+     #'e]
+    [(_ (x:id <- e:expr) rest ...+)
+     #'(monadic-app >>= e (monadic-lambda (x) (monadic-do rest ...)))]
+    [(_ e:expr rest ...+)
+     #'(monadic-app >>= e (monadic-lambda (_) (monadic-do rest ...)))]
+    ))
+
+;; Note the completely different syntax.
+(define-my-syntax my-do monadic-do do)

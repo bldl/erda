@@ -13,6 +13,14 @@
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+(define bad-0 (raise-with-value 'bad 0))
+(>>= 7 (lambda (x) (rkt.add1 x)))
+(do [x <- 7] (rkt.add1 x))
+(do [x <- 7] [y <- (rkt.add1 x)] y)
+(do 7 (rkt.add1 7))
+(do bad-0 8) ;; bad
+(do [x <- bad-0] (default-to-bad x)) ;; bad
+
 (define bad-if (if (raise 'bad) 1 0))
 (redo-app bad-if #t (thunk 1) (thunk 0))
 (redo-apply bad-if (args-replace-first #t (bad-result-args bad-if)))
@@ -115,11 +123,6 @@ bad+1
 (if 1 6 7)
 (if fl+ 9 9)
 (if #f fl+ 9)
-
-(>>= 7 (lambda (x) (rkt.add1 x)))
-(do [x <- 7] (rkt.add1 x))
-(do [x <- 7] [y <- (rkt.add1 x)] y)
-(do 7 (rkt.add1 7))
 
 (anti-do () (fl- (fl+ 1.0 2.0) 0.5))
 (anti-do ([a 1.0] [b 2.0])
