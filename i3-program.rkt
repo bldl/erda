@@ -24,15 +24,8 @@
   (on-alert ([(f2) 'only-f2])
     (writeln (list (f1) (f2)))
     (on-alert ([(f1) 'inner-f1])
-      (writeln (list (f1) (f2))))))
-
-(define bad-0 (raise-with-value 'bad 0))
-(>>= 7 (lambda (x) (rkt.add1 x)))
-(do [x <- 7] (rkt.add1 x))
-(do [x <- 7] [y <- (rkt.add1 x)] y)
-(do 7 (rkt.add1 7))
-(do bad-0 8) ;; bad
-(do [x <- bad-0] (default-to-bad x)) ;; bad
+      (writeln (list (f1) (f2)))
+      'done-on-alert)))
 
 (define bad-if (if (raise 'bad) 1 0))
 (redo-app bad-if #t (thunk 1) (thunk 0))
@@ -42,6 +35,14 @@ bad-if
 (redo bad-if)
 (bad-result-args bad-if)
 (args-replace-first #t (bad-result-args bad-if))
+
+(define bad-0 (raise-with-value 'bad 0))
+(>>= 7 (lambda (x) (rkt.add1 x)))
+(do [x <- 7] (rkt.add1 x))
+(do [x <- 7] [y <- (rkt.add1 x)] y)
+(do 7 (rkt.add1 7))
+(do bad-0 8) ;; bad
+(do [x <- bad-0] (default-to-bad x)) ;; bad
 
 (define b1 (car (list)))
 b1

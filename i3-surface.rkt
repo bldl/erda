@@ -63,11 +63,25 @@ The language, without its reader and its standard library.
 (define-my-syntax my-quote monadic-quote quote)
 
 (define-syntax (monadic-lambda stx)
-  (syntax-case stx ()
-    [(_ ps b ...)
+  (syntax-parse stx
+    [(_ (p:id ...) b ...)
      #`(Good
         #,(syntax/loc stx
-            (lambda ps b ...)))]))
+            (lambda (p ...) b ...)))]
+    [(_ (p:id ... . ps:id) b ...)
+     (define/with-syntax in-ps (generate-temporary 'rest))
+     #`(Good
+        #,(syntax/loc stx
+            (lambda (p ... . in-ps)
+              (let ([ps (Good in-ps)])
+                b ...))))]
+    [(_ ps:id b ...)
+     (define/with-syntax in-ps (generate-temporary 'rest))
+     #`(Good
+        #,(syntax/loc stx
+            (lambda in-ps
+              (let ([ps (Good in-ps)])
+                b ...))))]))
 
 (define-my-syntax my-lambda monadic-lambda lambda)
 
@@ -485,12 +499,12 @@ The language, without its reader and its standard library.
                  [else e])]
             [(p:id ... . rest:id)
              #'(cond
-                 [(or (Bad? p) ... (ormap Bad? rest))
+                 [(or (Bad? p) ... (ormap Bad? (Good-v rest)))
                   (bad-condition #:bad-arg fun args)]
                  [else e])]
             [rest:id
              #'(cond
-                 [(ormap Bad? rest)
+                 [(ormap Bad? (Good-v rest))
                   (bad-condition #:bad-arg fun args)]
                  [else e])])))
   
@@ -515,9 +529,10 @@ The language, without its reader and its standard library.
     [(_ (n:id p:id ... . rest:id) #:is tgt:id opts:maybe-alerts)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
-       (mk-alerting-expr #'(apply tgt (Good-v p) ... (map Good-v rest))
+       (mk-alerting-expr #'(apply tgt (Good-v p) ... (map Good-v (Good-v rest)))
                          stx 'primitive
-                         #'n #'(list* p ... rest) specs #'(p ... . rest)))
+                         #'n #'(list* p ... (Good-v rest))
+                         specs #'(p ... . rest)))
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'tgt
@@ -547,7 +562,7 @@ The language, without its reader and its standard library.
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'handler
-                         #'n #'(list* p ... rest) specs #f))
+                         #'n #'(list* p ... (Good-v rest)) specs #f))
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'n
@@ -565,7 +580,7 @@ The language, without its reader and its standard library.
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'regular
-                         #'n #'(list* p ... rest) specs #'(p ... . rest)))
+                         #'n #'(list* p ... (Good-v rest)) specs #'(p ... . rest)))
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'n

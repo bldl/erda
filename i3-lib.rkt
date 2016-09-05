@@ -139,8 +139,8 @@ The language standard library.
     (rif (rand (rapp rkt.list? x) (rapp andmap Result? x)) #t #f)))
 
 (define* (args-list . args) #:handler
-  #:alert ([bad-arg pre-unless (rapp Good (rapp andmap Result? args))])
-  (rapp Good args))
+  #:alert ([bad-arg pre-unless (rapp Good (rapp andmap Result? (rapp Good-v args)))])
+  args)
 
 (define* (args-cons x args) #:handler
   #:alert ([bad-arg pre-unless (and (result? x) (list? args))])
@@ -170,5 +170,5 @@ The language standard library.
   (apply (bad-result-fun v) args))
 
 (define* (redo-app v . args) #:handler
-  #:alert ([bad-arg pre-unless (bad-result? v)])
-  (apply (bad-result-fun v) (rapp Good args)))
+  #:alert ([bad-arg pre-unless (and (bad-result? v) (args-list? args))])
+  (apply (bad-result-fun v) args))
