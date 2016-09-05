@@ -35,7 +35,7 @@ The language, without its reader and its standard library.
          declare
          
          ;; expression forms
-         (rename-out [my-datum #%datum] [my-app #%app] [my-apply apply]
+         (rename-out [my-datum #%datum] [my-app #%app]
                      [my-quote quote]
                      [my-if if] [my-and and] [my-or or] [my-cond cond]
                      [my-do do]
@@ -165,13 +165,6 @@ The language, without its reader and its standard library.
      #'(monadic-app-fun fun args ...)]))
 
 (define-my-syntax my-app monadic-app #%app)
-
-(define (monadic-apply tgt wargs)
-  (define args (Good-v wargs))
-  ;;(writeln (cons tgt args))
-  (apply monadic-app-fun tgt args))
-  
-(define-my-syntax my-apply monadic-apply apply)
 
 ;;; 
 ;;; on-alert
@@ -590,6 +583,24 @@ The language, without its reader and its standard library.
 ;; Note the completely different syntax.
 (define-my-syntax my-define monadic-define define)
 
+;;; 
+;;; `apply`
+;;; 
+
+(provide (rename-out [monadic-apply apply]))
+
+;; Contorted, to also allow `tgt` to be an unwrapped procedure.
+(define/known monadic-apply
+  (Good
+   (lambda (tgt wargs)
+     (cond
+       [(Good? wargs)
+        (apply monadic-app-fun tgt (Good-v wargs))]
+       [(procedure? tgt)
+        (bad-condition #:bad-arg (wrap-primitive tgt) wargs)]
+       [else
+        (bad-condition #:bad-arg tgt wargs)]))))
+  
 ;;; 
 ;;; recovery
 ;;; 

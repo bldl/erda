@@ -13,6 +13,15 @@
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+(if #t 1 0)
+(define bad-if (if (raise 'bad) 1 0))
+bad-if
+(redo bad-if)
+(redo-app bad-if #t (thunk 1) (thunk 0))
+(redo-apply bad-if (args-replace-first #t (bad-result-args bad-if)))
+(bad-result-args bad-if)
+(args-replace-first #t (bad-result-args bad-if))
+
 (define (f1) 
   (raise 'f1-error))
 (define (f2) 
@@ -26,15 +35,6 @@
     (on-alert ([(f1) 'inner-f1])
       (writeln (list (f1) (f2)))
       'done-on-alert)))
-
-(define bad-if (if (raise 'bad) 1 0))
-(redo-app bad-if #t (thunk 1) (thunk 0))
-(redo-apply bad-if (args-replace-first #t (bad-result-args bad-if)))
-(if #t 1 0)
-bad-if
-(redo bad-if)
-(bad-result-args bad-if)
-(args-replace-first #t (bad-result-args bad-if))
 
 (define bad-0 (raise-with-value 'bad 0))
 (>>= 7 (lambda (x) (rkt.add1 x)))
