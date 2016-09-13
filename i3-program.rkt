@@ -4,7 +4,7 @@
 |#
 
 (require (only-in racket/base [#%app rapp]
-                  = < > + - * / not add1 sub1
+                  = < > + - * / add1 sub1
                   exn:fail:contract:divide-by-zero? exit
                   writeln displayln))
 (require (only-in racket/function identity))
@@ -151,9 +151,9 @@ two
 (good-result? two)
 (result-has-value? two)
 
-(and 1 2)
-(or 1 2)
-(cond [#f 1] [#:else 2])
+(and 1 22)
+(or 1 22)
+(cond [#f 1] [#:else 22])
 
 (declare (id x) #:is identity #:direct)
 (id 7)

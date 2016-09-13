@@ -9,6 +9,7 @@
 (define* ErdaRkt @elem{Erda@subscript{@italic{RVM}}})
 (define* ErdaRktAssign @elem{Erda@subscript{@italic{RVM}}@superscript{σ}})
 (define* ErdaCxx @elem{Erda@subscript{@italic{C++}}})
+(define* ErdaGa @elem{Erda@subscript{@italic{GA}}})
 
 (define-runtime-path MAGNOLISPGITREV-file
   "../MAGNOLISPGITREV")

@@ -11,7 +11,7 @@ The language standard library.
          (only-in racket/base [list rlist] map andmap ormap
                   [if rif] [or ror] [and rand]
                   begin-for-syntax define-syntax define-syntax-rule
-                  quote-syntax not symbol? [apply rapply] [#%app rapp])
+                  quote-syntax symbol? [apply rapply] [#%app rapp])
          (only-in racket/bool symbol=?)
          (for-syntax racket/base syntax/parse))
 
@@ -98,6 +98,15 @@ The language standard library.
                  #:cause cause))
 
 ;;; 
+;;; `not`
+;;; 
+
+(require
+ (prefix-in rkt. (only-in racket/base not)))
+
+(declare* (not x) #:is rkt.not)
+
+;;; 
 ;;; lists and pairs
 ;;;
 
@@ -131,15 +140,35 @@ The language standard library.
   #:alert ([bad-arg pre-unless (pair? p)]))
 
 ;;; 
+;;; arithmetic
+;;; 
+
+(require
+ (prefix-in rkt. (only-in racket/base real? >= <)))
+
+(declare (real? x) #:is rkt.real?)
+
+(declare (< x y) #:is rkt.<
+  #:alert ([bad-arg pre-unless (and (real? x) (real? y))]))
+
+(declare (>= x y) #:is rkt.>=
+  #:alert ([bad-arg pre-unless (and (real? x) (real? y))]))
+
+;;; 
 ;;; argument list manipulation
 ;;; 
+
+(require
+ (prefix-in rkt. (only-in racket/list list-set)))
 
 (define* (args-list? x)
   (let ((x (rapp Good-v x)))
     (rif (rand (rapp rkt.list? x) (rapp andmap Result? x)) #t #f)))
 
 (define* (args-list . args) #:handler
-  #:alert ([bad-arg pre-unless (rapp Good (rapp andmap Result? (rapp Good-v args)))])
+  #:alert ([bad-arg pre-unless (rapp Good
+                                     (rapp andmap Result?
+                                           (rapp Good-v args)))])
   args)
 
 (define* (args-cons x args) #:handler
@@ -153,9 +182,18 @@ The language standard library.
   #:alert ([bad-arg pre-unless (pair? args)])
   (rapp Good (rapp rkt.cdr (rapp Good-v args))))
 
-(define* (args-replace-first v args) #:handler
-  #:alert ([bad-arg pre-unless (pair? args)])
+(define* (args-replace-first args v) #:handler
   (args-cons v (args-cdr args)))
+
+(define* (args-list-set args pos v) #:handler
+  #:alert ([bad-arg pre-unless (and (pair? args)
+                                    (>= pos 0)
+                                    (< pos (length args))
+                                    (result? v))])
+  (rapp Good (rapp rkt.list-set
+                   (rapp Good-v args)
+                   (rapp Good-v pos)
+                   v)))
 
 ;;; 
 ;;; redoing

@@ -316,9 +316,9 @@ The language, without its reader and its standard library.
 
 (define-syntax (monadic-cond stx)
   (syntax-parse stx
-    [(_ [#:else e:expr]) #'e]
-    [(_ [c:expr t:expr] e ...)
-     #'(monadic-if c t (monadic-cond e ...))]))
+    [(_ [#:else e:expr ...+]) #'(begin e ...)]
+    [(_ [c:expr t:expr ...+] . rest)
+     #'(monadic-if c (begin t ...) (monadic-cond . rest))]))
 
 (define-my-syntax my-cond monadic-cond cond)
 
