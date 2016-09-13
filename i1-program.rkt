@@ -101,7 +101,7 @@ Some test code written in the erda/rvm language.
 
 (define (Bad-five? x) #:handler
   (and (bad-result? x) (result-has-value? x)
-       (= (value-of-result x) 5)))
+       (= (result-value x) 5)))
 
 (Bad-five? 7)
 (Bad-five? 5)
@@ -117,12 +117,12 @@ Some test code written in the erda/rvm language.
   #:alert ([no-good pre-unless (or (good-result? x)
                                    (and (result-has-value? x)
                                         (good-result?
-                                         (value-of-result x))))]
+                                         (result-value x))))]
            [pre-five pre-when (Bad-five? x)]
            [post-five post-when (Bad-five? value)])
   (if (good-result? x) 
       (add1 x)
-      (set-bad-result-value x (add1 (value-of-result x)))))
+      (set-bad-result-value x (add1 (result-value x)))))
 
 (forced-add1 77)
 (forced-add1 5)
@@ -252,9 +252,9 @@ Some test code written in the erda/rvm language.
 (result-has-value? 4)
 (result-has-value? (identity-likes-0 -7))
 (result-has-value? (identity-likes-0 7))
-(value-of-result (identity-likes-0 7))
-(value-of-result 8)
-(value-of-result (/ 1 0))
+(result-value (identity-likes-0 7))
+(result-value 8)
+(result-value (/ 1 0))
 
 'great
 (bare . #f)

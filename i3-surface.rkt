@@ -667,17 +667,20 @@ The language, without its reader and its standard library.
 
 (provide >>=)
 
-;; Error monadic bind. Differs from monads in that `f` takes a wrapped
-;; (but Good) value.
-(monadic-define (>>= v f) ;; M a -> (M b -> M b) -> M b
+;; Error monadic bind. Its type signature M a -> (M b -> M b) -> M b
+;; differs from monads in that `f` takes a wrapped (but Good) value.
+(monadic-define (>>= v f)
+  ;; The implementation is as for the identity monad, due to our
+  ;; language semantics, even though `M` is not an identity function
+  ;; on types, meaning that the values are indeed wrapped.
   (monadic-app f v))
 
-;; Syntactic sugar for `>>=`.
+;; Syntactic sugar for nested invocations of `>>=`.
 (define-syntax* (monadic-do stx)
   (syntax-parse stx #:datum-literals (<-)
     [(_ e:expr) 
      #'e]
-    [(_ (x:id <- e:expr) rest ...+)
+    [(_ [x:id <- e:expr] rest ...+)
      #'(monadic-app >>= e (monadic-lambda (x) (monadic-do rest ...)))]
     [(_ e:expr rest ...+)
      #'(monadic-app >>= e (monadic-lambda (_) (monadic-do rest ...)))]
