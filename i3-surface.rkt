@@ -681,9 +681,13 @@ The language, without its reader and its standard library.
     [(_ e:expr) 
      #'e]
     [(_ [x:id <- e:expr] rest ...+)
-     #'(monadic-app >>= e (monadic-lambda (x) (monadic-do rest ...)))]
+     (define/with-syntax lam
+       (syntax/loc stx (monadic-lambda (x) (monadic-do rest ...))))
+     #'(monadic-app >>= e lam)]
     [(_ e:expr rest ...+)
-     #'(monadic-app >>= e (monadic-lambda (_) (monadic-do rest ...)))]
+     (define/with-syntax lam
+       (syntax/loc stx (monadic-lambda (_) (monadic-do rest ...))))
+     #'(monadic-app >>= e lam)]
     ))
 
 ;; Note the completely different syntax.
