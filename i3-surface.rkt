@@ -38,7 +38,6 @@ The language, without its reader and its standard library.
          (rename-out [my-datum #%datum] [my-app #%app]
                      [my-quote quote]
                      [my-if if] [my-and and] [my-or or] [my-cond cond]
-                     [my-do do]
                      [my-lambda lambda] [my-lambda λ] [my-thunk thunk])
          begin begin0
          let let* letrec
@@ -660,35 +659,3 @@ The language, without its reader and its standard library.
                    (cond
                      catch-clause ...
                      catch-all-clause))))))]))
-
-;;; 
-;;; error monadic sequencing
-;;; 
-
-(provide >>=)
-
-;; Error monadic bind. Its type signature M a -> (M b -> M b) -> M b
-;; differs from monads in that `f` takes a wrapped (but Good) value.
-(monadic-define (>>= v f)
-  ;; The implementation is as for the identity monad, due to our
-  ;; language semantics, even though `M` is not an identity function
-  ;; on types, meaning that the values are indeed wrapped.
-  (monadic-app f v))
-
-;; Syntactic sugar for nested invocations of `>>=`.
-(define-syntax* (monadic-do stx)
-  (syntax-parse stx #:datum-literals (<-)
-    [(_ e:expr) 
-     #'e]
-    [(_ [x:id <- e:expr] rest ...+)
-     (define/with-syntax lam
-       (syntax/loc stx (monadic-lambda (x) (monadic-do rest ...))))
-     #'(monadic-app >>= e lam)]
-    [(_ e:expr rest ...+)
-     (define/with-syntax lam
-       (syntax/loc stx (monadic-lambda (_) (monadic-do rest ...))))
-     #'(monadic-app >>= e lam)]
-    ))
-
-;; Note the completely different syntax.
-(define-my-syntax my-do monadic-do do)

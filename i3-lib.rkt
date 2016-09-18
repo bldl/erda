@@ -13,7 +13,7 @@ The language standard library.
                   begin-for-syntax define-syntax define-syntax-rule
                   quote-syntax symbol? [apply rapply] [#%app rapp])
          (only-in racket/bool symbol=?)
-         (for-syntax racket/base syntax/parse))
+         (for-syntax racket/base racket/syntax syntax/parse))
 
 (define-syntax-rule
   (define* (n . p) . more)
@@ -210,3 +210,35 @@ The language standard library.
 (define* (redo-app v . args) #:handler
   #:alert ([bad-arg pre-unless (and (bad-result? v) (args-list? args))])
   (apply (bad-result-fun v) args))
+
+;;; 
+;;; error monadic sequencing
+;;; 
+
+(provide do >>=)
+
+;; Identity monadic bind, which due to the language is error monadic,
+;; too. Its type signature M a -> (M b -> M b) -> M b differs from
+;; `Monad`s in that `f` takes a wrapped (but `Good`) value, but in a
+;; more abstract sense it is still like an identity monad's bind
+;; operation.
+(define (>>= v f)
+  (f v))
+;; The implementation is as for the identity monad, due to our
+;; language semantics, even though `M` is not an identity function on
+;; types, meaning that the values are indeed wrapped.
+
+;; Syntactic sugar for nested invocations of `>>=`.
+(define-syntax (do stx)
+  (syntax-parse stx #:datum-literals (<-)
+    [(_ e:expr) 
+     #'e]
+    [(_ [x:id <- e:expr] rest ...+)
+     (define/with-syntax lam
+       (syntax/loc stx (lambda (x) (do rest ...))))
+     #'(e . >>= . lam)]
+    [(_ e:expr rest ...+)
+     (define/with-syntax lam
+       (syntax/loc stx (lambda (_) (do rest ...))))
+     #'(e . >>= . lam)]
+    ))
