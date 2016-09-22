@@ -130,7 +130,7 @@ For example:
     [(raise 'bad) 'bad]
     [else 'otherwise]))}
 
-@defform[(anti-do ([arg expr] ...) body ...+)]{
+@defform[(let-direct ([arg expr] ...) body ...+)]{
 Locally switches to a bare-value ``evaluation mode,'' for the @racket[body] expressions. Each argument value, given by @racket[expr], is unwrapped and bound to the corresponding @racket[arg], which must be an identifier. Said identifiers will be bound in the scope of the body. The result of the body expressions is then again wrapped, in either a good or bad wrapper, based on the DI. The overall expression fails if any @racket[expr] yields a bad value, and in that case the body is left unevaluated.
 }
 
@@ -167,7 +167,7 @@ Installs handlers for the scope of the @racket[body] expressions, the last of wh
 
 If any application of a function listed by @racket[id] fails (with a bad result), then a matching clause's @racket[expr]essions are evaluated, and the result of the last of them is substituted in place of the result of the failed function call.
 
-This recovery mechanism does not apply to syntactic forms (even if named by @racket[id]), nor will recovery happen within the body of an @racket[anti-do] expression.
+This recovery mechanism does not apply to syntactic forms (even if named by @racket[id]), nor will recovery happen within the body of an @racket[let-direct] expression.
 
 For example:
 @(interaction #:eval the-eval

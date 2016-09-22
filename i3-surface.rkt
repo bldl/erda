@@ -249,15 +249,17 @@ The language, without its reader and its standard library.
 ;;; direct mode
 ;;; 
 
+(provide begin-direct)
+
 ;; Enables direct mode for a block scope. The `b ...` expressions deal
 ;; in bare values, except that native Erda functions work as usual.
 ;; The "free variables" and their values should be given as `[p e]
 ;; ...` for unwrapping.
-(define-syntax* (anti-do stx)
+(define-syntax* (let-direct stx)
   (syntax-parse stx
     [(_ ([p:id e:expr] ...) b:expr ...+)
      ;; Define a primitive for history recording.
-     (define/with-syntax fun (generate-temporary 'anti-do))
+     (define/with-syntax fun (generate-temporary 'let-direct))
      #'(letrec
            ([fun
              (lambda (p ...)

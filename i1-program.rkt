@@ -135,12 +135,12 @@ Some test code written in the erda/rvm language.
 (+ (raise 'bad) 3)
 (+ 7 (raise 'bad))
 
-(anti-do () 17)
-(anti-do ((x 1)) 18)
-(anti-do ((x (raise 'ugly))) 1 2)
-(anti-do ((x 1) (y 2)) (+ x y))
-(anti-do ((x 1) (y (raise 'horrible))) (+ x y))
-(anti-do ((x (raise 'great)) (y 2)) (+ x y))
+(let-direct () 17)
+(let-direct ((x 1)) 18)
+(let-direct ((x (raise 'ugly))) 1 2)
+(let-direct ((x 1) (y 2)) (+ x y))
+(let-direct ((x 1) (y (raise 'horrible))) (+ x y))
+(let-direct ((x (raise 'great)) (y 2)) (+ x y))
 
 (define (+-equal x y)
   #:alert ([not-equal pre-unless (= x y)])
@@ -271,9 +271,9 @@ Some test code written in the erda/rvm language.
 (default-to-bad (raise-with-value 'worse 11))
 (default-to-bad 12)
 
-(let ((y 5)) (anti-do ((x y)) (* 2 x)))
-(let ((x 5)) (anti-do ((x x)) x))
-(anti-do ((x (/ 7 0))) (* x 2))
+(let ((y 5)) (let-direct ((x y)) (* 2 x)))
+(let ((x 5)) (let-direct ((x x)) x))
+(let-direct ((x (/ 7 0))) (* x 2))
 
 (try 1 #:catch)
 (try 1 #:catch [_ value])
@@ -296,7 +296,7 @@ Some test code written in the erda/rvm language.
 (+ 1 (default-to-bad (raise-with-value 'bad 5)))
 (+ 2 (default-to-bad 3))
 
-(anti-do ((x 2)) (* (* (* x x) (* x x)) (* (* x x) (* x x))))
+(let-direct ((x 2)) (* (* (* x x) (* x x)) (* (* x x) (* x x))))
 
 (begin 1 (/ 1 0)) ;; => div-by-0[/]
 (begin (/ 1 0) 1) ;; => (Good 1)

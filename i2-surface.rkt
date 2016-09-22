@@ -143,18 +143,18 @@
 ;; The opposite of a `do` in Haskell. The `b ...` expressions deal in
 ;; bare values. The "free variables" and their values should be given
 ;; as `[p e] ...` for unwrapping.
-(define-syntax* (anti-do stx)
+(define-syntax* (let-direct stx)
   (syntax-parse stx
     [(_ ([p:id e:expr] ...) b:expr ...+)
      #'(let-Good-args 
-        ([p e] ...) #:op anti-do
+        ([p e] ...) #:op let-direct
         #:then
         (let ([p (Good-v p)] ...)
           (let ([r (begin-direct b ...)])
             (if (data-invariant? r)
                 (Good r)
                 (bad-condition #:data-invariant 
-                               (Good r) #'anti-do
+                               (Good r) #'let-direct
                                (list (Good p) ...))))))]))
 
 ;;;
