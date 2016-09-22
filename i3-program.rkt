@@ -13,6 +13,20 @@
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+((thunk 42))
+((lambda (x) x) 42)
+((lambda (x) x) (raise 'bad))
+(redo ((lambda (x) x) (raise 'bad)))
+((lambda (x) #:handler x) (raise 'fine))
+((lambda xs #:handler (args-car xs)) (raise 'fine))
+((lambda xs #:handler (args-car xs)) (raise 'fine) (raise 'bad))
+((lambda (x . xs) #:handler x) (raise 'finer) (raise 'bad))
+((lambda (x y . xs) (+ x y)) 1 2 (raise 'too) (raise 'bad))
+((lambda xs (apply + xs)) 1 2)
+((lambda xs #:handler (apply + xs)) 1 2)
+((lambda (x y) #:alert ([div-by-0 pre-when (= y 0)]) (/ x y)) 1 0)
+((lambda (x y) #:alert ([div-by-0 pre-when (= y 0)]) (/ x y)) 1 6)
+
 (if #t 1 0)
 (define bad-if (if (raise 'bad) 1 0))
 bad-if

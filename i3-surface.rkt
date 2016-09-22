@@ -44,51 +44,7 @@ The language, without its reader and its standard library.
          value)
 
 ;;; 
-;;; literal value forms
-;;; 
-
-(define-syntax (monadic-datum stx)
-  (syntax-case stx ()
-    [(_ . dat)
-     #'(Good (#%datum . dat))]))
-
-(define-my-syntax my-datum monadic-datum #%datum)
-
-(define-syntax (monadic-quote stx)
-  (syntax-parse stx
-    [(_ dat:id)
-     #'(Good (quote dat))]))
-
-(define-my-syntax my-quote monadic-quote quote)
-
-(define-syntax (monadic-lambda stx)
-  (syntax-parse stx
-    [(_ (p:id ...) b ...)
-     #`(Good
-        #,(syntax/loc stx
-            (lambda (p ...) b ...)))]
-    [(_ (p:id ... . ps:id) b ...)
-     (define/with-syntax in-ps (generate-temporary 'rest))
-     #`(Good
-        #,(syntax/loc stx
-            (lambda (p ... . in-ps)
-              (let ([ps (Good in-ps)])
-                b ...))))]
-    [(_ ps:id b ...)
-     (define/with-syntax in-ps (generate-temporary 'rest))
-     #`(Good
-        #,(syntax/loc stx
-            (lambda in-ps
-              (let ([ps (Good in-ps)])
-                b ...))))]))
-
-(define-my-syntax my-lambda monadic-lambda lambda)
-
-(define-syntax-rule (my-thunk b ...)
-  (my-lambda () b ...))
-
-;;; 
-;;; function application
+;;; known function tracking
 ;;;
 
 ;; (free-id-set/c identifier? #:mutability 'mutable)
@@ -109,223 +65,27 @@ The language, without its reader and its standard library.
          (define n . rest)
          (set-known-fun! n))]))
 
-(define (wrap-primitive proc)
-  (Good (procedure-rename
-         (lambda wargs
-           (monadic-apply-primitive proc wargs))
-         (object-name proc))))
+;;; 
+;;; literal value forms
+;;; 
 
-;; Calls an unknown primitive, which thus has no declared error
-;; unformation, but unwrapping and wrapping needs to happen in monadic
-;; mode. The `proc` argument must be a `procedure?`, whereas `wargs`
-;; must be a list of wrapped arguments.
-(define (monadic-apply-primitive proc wargs)
-  (cond
-    [(ormap Bad? wargs)
-     (bad-condition #:bad-arg (wrap-primitive proc) wargs)]
-    [else
-     (define bargs (map Good-v wargs))
-     (define bresult (apply proc bargs))
-     (cond
-       [(not (data-invariant? bresult))
-        (bad-condition #:bad-result (wrap-primitive proc) wargs)]
-       [else
-        (Good bresult)])]))
+(define-syntax (monadic-datum stx)
+  (syntax-case stx ()
+    [(_ . dat)
+     #'(Good (#%datum . dat))]))
 
-(define (monadic-app-fun tgt . wargs)
-  (cond
-    [(procedure? tgt) ;; primitive
-     (monadic-apply-primitive tgt wargs)]
-    [(Good? tgt)
-     (define fun (Good-v tgt))
-     ;; Call the thunk that does all alert processing for a function.
-     (apply fun wargs)]
-    [else
-     ;; Badness. Attempt to call a non-function, or a Bad function.
-     ;; An implicit precondition for function application is that
-     ;; the applied function must in fact be a function.
-     ;; History will have the same bad function value, and thus the
-     ;; same bad condition should arise by repeating the call.
-     (bad-condition #:bad-function tgt wargs)]))
+(define-my-syntax my-datum monadic-datum #%datum)
 
-(define-syntax-parameter on-alert-hook
-  (syntax-rules ()
-    [(_ _ e) e]))
-
-(define-syntax (monadic-app stx)
+(define-syntax (monadic-quote stx)
   (syntax-parse stx
-    [(_ fun:id args:expr ...)
-     (define/with-syntax app-expr
-       (if (free-id-set-member? known-fun-set #'fun)
-           #'((Good-v fun) args ...) ;; direct call to a known function
-           #'(monadic-app-fun fun args ...)))
-     #'(on-alert-hook fun app-expr)]
-    [(_ fun:expr args:expr ...)
-     #'(monadic-app-fun fun args ...)]))
+    [(_ dat:id)
+     #'(Good (quote dat))]))
 
-(define-my-syntax my-app monadic-app #%app)
+(define-my-syntax my-quote monadic-quote quote)
 
 ;;; 
-;;; on-alert
+;;; alert checking
 ;;;
-
-(define-for-syntax (as-syntax x)
-  (cond
-    ((syntax? x) #`(quote-syntax #,x))
-    ((list? x) #`(list #,@(map as-syntax x)))
-    (else (raise-argument-error
-           'as-syntax "(or/c syntax? list?)" x))))
-
-;; As an optimization, this macro only expands to a call to the
-;; recovery function `recover` where the operation ID `op-id` of the
-;; operation expression `op-e` is on the list of IDs `(can-id ...)`
-;; supported by the recovery function.
-(define-syntax (maybe-recover stx)
-  (syntax-parse stx
-    [(_ (can-id:id ...+) recover:id op-id:id op-e:expr)
-     (cond
-       [(ormap (curry free-identifier=? #'op-id)
-               (syntax->list #'(can-id ...)))
-        #'(recover #'op-id op-e)]
-       [else
-        #'op-e])]))
-
-(define-syntax-parameter on-alert-lst '())
-
-(define-syntax* (on-alert stx)
-  (define-syntax-class clause
-    #:description "handler clause"
-    #:attributes (info)
-    (pattern
-     [(op:id ...) hnd:expr ...+]
-     #:attr info (list (syntax->list #'(op ...))
-                       (syntax->list #'(hnd ...)))))
-
-  ;; Produces syntax for an anonymous function which might do some
-  ;; context-sensitive recovery on a Bad input value.
-  (define (make-recover-lam lst)
-    ;;(printf "`on-alert` handlers: ~s~n" lst)
-    (with-syntax ([bad (generate-temporary 'bad)]
-                  [(cond-clause ...)
-                   (for/list ([spec lst])
-                     (with-syntax ([(decl-op ...) (first spec)]
-                                   [(action ...) (second spec)])
-                       #'[(or (free-identifier=? op-id #'decl-op) ...)
-                          action ...]))])
-      (define r
-        #'(lambda (op-id bad)
-            (syntax-parameterize ([value
-                                   (make-rename-transformer #'bad)])
-              (cond
-                [(Good? bad) bad]
-                cond-clause ...
-                [else bad]))))
-      ;;(pretty-print (syntax->datum r))
-      r))
-  
-  (syntax-parse stx
-    ((_ (c:clause ...) e:expr ...+)
-     (define lst (append
-                  (reverse (attribute c.info))
-                  (syntax-parameter-value #'on-alert-lst)))
-     (cond
-       ((null? lst)
-        #'(let () e ...))
-       (else
-        (with-syntax ([new-lst (as-syntax lst)]
-                      [(can-id ...) (apply append (map first lst))]
-                      [recover-lam (make-recover-lam lst)])
-          #'(let ([recover recover-lam])
-              (syntax-parameterize ([on-alert-lst new-lst]
-                                    [on-alert-hook
-                                     (syntax-rules ()
-                                       [(_ op-id op-e)
-                                        (maybe-recover 
-                                         (can-id ...) recover 
-                                         op-id op-e)])])
-                e ...))))))))
-
-;;; 
-;;; direct mode
-;;; 
-
-(provide begin-direct)
-
-;; Enables direct mode for a block scope. The `b ...` expressions deal
-;; in bare values, except that native Erda functions work as usual.
-;; The "free variables" and their values should be given as `[p e]
-;; ...` for unwrapping.
-(define-syntax* (let-direct stx)
-  (syntax-parse stx
-    [(_ ([p:id e:expr] ...) b:expr ...+)
-     ;; Define a primitive for history recording.
-     (define/with-syntax fun (generate-temporary 'let-direct))
-     #'(letrec
-           ([fun
-             (lambda (p ...)
-               (begin-direct b ...))])
-         (monadic-apply-primitive fun (list e ...)))]))
-
-;;; 
-;;; `if` and other conditionals
-;;; 
-
-(provide if-then)
-
-;; This function is a `#:handler` in the sense that it allows a bad
-;; then or else expression, long as it is not used.
-(define/known if-then
-  (monadic-lambda
-   (c t-lam e-lam)
-   (cond
-     [(Good? c)
-      (define v (Good-v c))
-      (define lam
-        (if v t-lam e-lam))
-      (cond
-        [(Good? lam) ((Good-v lam))]
-        [else
-         (bad-condition #:bad-arg if-then (list c t-lam e-lam))])]
-     [else
-      (bad-condition #:bad-arg if-then (list c t-lam e-lam))])))
-
-(define-syntax (monadic-if stx)
-  (syntax-parse stx
-    [(_ c:expr t:expr e:expr)
-     #'(monadic-app if-then c (my-thunk t) (my-thunk e))]))
-
-(define-my-syntax my-if monadic-if if)
-
-(define-syntax monadic-or
-  (syntax-rules ()
-    [(_) (Good #f)]
-    [(_ e) e]
-    [(_ e0 e ...)
-     (let ([v e0])
-       (monadic-if v v (monadic-or e ...)))]))
-
-(define-my-syntax my-or monadic-or or)
-
-(define-syntax monadic-and
-  (syntax-rules ()
-    [(_) (Good #t)]
-    [(_ e) e]
-    [(_ e0 e ...)
-     (monadic-if e0 (monadic-and e ...) (Good #f))]))
-
-(define-my-syntax my-and monadic-and and)
-
-(define-syntax (monadic-cond stx)
-  (syntax-parse stx
-    [(_ [#:else e:expr ...+]) #'(begin e ...)]
-    [(_ [c:expr t:expr ...+] . rest)
-     #'(monadic-if c (begin t ...) (monadic-cond . rest))]))
-
-(define-my-syntax my-cond monadic-cond cond)
-
-;;; 
-;;; function definition
-;;; 
 
 (begin-for-syntax
   (define-syntax-class alert-pre-clause
@@ -504,12 +264,182 @@ The language, without its reader and its standard library.
   
   e-stx)
   
+;;; 
+;;; function application
+;;;
+
+(define (wrap-primitive proc)
+  (Good (procedure-rename
+         (lambda wargs
+           (monadic-apply-primitive proc wargs))
+         (object-name proc))))
+
+;; Calls an unknown primitive, which thus has no declared error
+;; unformation, but unwrapping and wrapping needs to happen in monadic
+;; mode. The `proc` argument must be a `procedure?`, whereas `wargs`
+;; must be a list of wrapped arguments.
+(define (monadic-apply-primitive proc wargs)
+  (cond
+    [(ormap Bad? wargs)
+     (bad-condition #:bad-arg (wrap-primitive proc) wargs)]
+    [else
+     (define bargs (map Good-v wargs))
+     (define bresult (apply proc bargs))
+     (cond
+       [(not (data-invariant? bresult))
+        (bad-condition #:bad-result (wrap-primitive proc) wargs)]
+       [else
+        (Good bresult)])]))
+
+(define (monadic-app-fun tgt . wargs)
+  (cond
+    [(procedure? tgt) ;; primitive
+     (monadic-apply-primitive tgt wargs)]
+    [(Good? tgt)
+     (define fun (Good-v tgt))
+     ;; Call the thunk that does all alert processing for a function.
+     (apply fun wargs)]
+    [else
+     ;; Badness. Attempt to call a non-function, or a Bad function.
+     ;; An implicit precondition for function application is that
+     ;; the applied function must in fact be a function.
+     ;; History will have the same bad function value, and thus the
+     ;; same bad condition should arise by repeating the call.
+     (bad-condition #:bad-function tgt wargs)]))
+
+(define-syntax-parameter on-alert-hook
+  (syntax-rules ()
+    [(_ _ e) e]))
+
+(define-syntax (monadic-app stx)
+  (syntax-parse stx
+    [(_ fun:id args:expr ...)
+     (define/with-syntax app-expr
+       (if (free-id-set-member? known-fun-set #'fun)
+           #'((Good-v fun) args ...) ;; direct call to a known function
+           #'(monadic-app-fun fun args ...)))
+     #'(on-alert-hook fun app-expr)]
+    [(_ fun:expr args:expr ...)
+     #'(monadic-app-fun fun args ...)]))
+
+(define-my-syntax my-app monadic-app #%app)
+
+;;; 
+;;; `lambda` and `thunk`
+;;;
+
+;; Wraps the function value and any rest argument in `Good`.
+(define-syntax (plain-lambda stx)
+  (syntax-parse stx
+    [(_ (p:id ...) b ...)
+     #`(Good
+        #,(syntax/loc stx
+            (lambda (p ...) b ...)))]
+    [(_ (p:id ... . ps:id) b ...)
+     (define/with-syntax in-ps (generate-temporary 'rest))
+     #`(Good
+        #,(syntax/loc stx
+            (lambda (p ... . in-ps)
+              (let ([ps (Good in-ps)])
+                b ...))))]
+    [(_ ps:id b ...)
+     (define/with-syntax in-ps (generate-temporary 'rest))
+     #`(Good
+        #,(syntax/loc stx
+            (lambda in-ps
+              (let ([ps (Good in-ps)])
+                b ...))))]))
+
+(define-syntax (monadic-lambda stx)
+  (syntax-parse stx
+    [(_ ps #:direct b:expr ...+)
+     (syntax/loc stx
+       (plain-lambda ps b ...))]
+    [(_ ps #:handler b:expr ...+) ;; optimize no-alerts case
+     (syntax/loc stx
+       (plain-lambda ps b ...))]
+    [(_ (p:id ... . rest:id) #:handler opts:alerts-spec b:expr ...+)
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define lam-id (generate-temporary 'lambda))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'handler
+                         lam-id #'(list* p ... (Good-v rest))
+                         specs #f))
+     (define/with-syntax n lam-id)
+     (syntax/loc stx
+       (letrec ([n (plain-lambda (p ... . rest) a-e)])
+         n))]
+    [(_ (p:id ...) #:handler opts:alerts-spec b:expr ...+)
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define lam-id (generate-temporary 'lambda))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'handler
+                         lam-id #'(list p ...) specs #f))
+     (define/with-syntax n lam-id)
+     (syntax/loc stx
+       (letrec ([n (plain-lambda (p ...) a-e)])
+         n))]
+    [(_ ps:id #:handler opts:alerts-spec b:expr ...+)
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define lam-id (generate-temporary 'lambda))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'handler
+                         lam-id #'(Good-v ps)
+                         specs #f))
+     (syntax/loc stx
+       (letrec ([n (plain-lambda ps a-e)])
+         n))]
+    [(_ () b:expr ...+) ;; optimize no-args-or-alerts case
+     (syntax/loc stx
+       (plain-lambda () b ...))]
+    [(_ (p:id ... . rest:id) opts:maybe-alerts b:expr ...+) ;; regular
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define lam-id (generate-temporary 'lambda))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'regular
+                         lam-id #'(list* p ... (Good-v rest))
+                         specs #'(p ... . rest)))
+     (define/with-syntax n lam-id)
+     (syntax/loc stx
+       (letrec ([n (plain-lambda (p ... . rest) a-e)])
+         n))]
+    [(_ (p:id ...) opts:maybe-alerts b:expr ...+) ;; regular
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define lam-id (generate-temporary 'lambda))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'regular
+                         lam-id #'(list p ...) specs #'(p ...)))
+     (define/with-syntax n lam-id)
+     (syntax/loc stx
+       (letrec ([n (plain-lambda (p ...) a-e)])
+         n))]
+    [(_ ps:id opts:maybe-alerts b:expr ...+) ;; regular
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define lam-id (generate-temporary 'lambda))
+     (define/with-syntax a-e
+       (mk-alerting-expr #'(begin b ...) stx 'regular
+                         lam-id #'(Good-v ps)
+                         specs #'ps))
+     (syntax/loc stx
+       (letrec ([n (plain-lambda ps a-e)])
+         n))]
+    ))
+
+(define-my-syntax my-lambda monadic-lambda lambda)
+
+(define-syntax-rule (my-thunk b ...)
+  (my-lambda () b ...))
+
+;;; 
+;;; function definition
+;;; 
+
 (define-syntax (declare stx)
   (syntax-parse stx
     [(_ (n:id p ...) #:is tgt:id #:direct)
      (syntax/loc stx
        (define/known n
-         (my-lambda (p ...)
+         (plain-lambda (p ...)
            (#%app tgt p ...))))]
     [(_ (n:id p:id ...) #:is tgt:id opts:maybe-alerts)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
@@ -519,7 +449,7 @@ The language, without its reader and its standard library.
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'tgt
-             (monadic-lambda (p ...) a-e))))]
+             (plain-lambda (p ...) a-e))))]
     [(_ (n:id p:id ... . rest:id) #:is tgt:id opts:maybe-alerts)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
@@ -530,7 +460,7 @@ The language, without its reader and its standard library.
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'tgt
-             (monadic-lambda (p ... . rest) a-e))))]
+             (plain-lambda (p ... . rest) a-e))))]
     ))
 
 (define-syntax (monadic-define stx)
@@ -542,7 +472,7 @@ The language, without its reader and its standard library.
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'n
-             (monadic-lambda p b ...))))]
+             (plain-lambda p b ...))))]
     [(_ (n:id p:id ...) #:handler opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
@@ -551,7 +481,7 @@ The language, without its reader and its standard library.
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'n
-             (monadic-lambda (p ...) a-e))))]
+             (plain-lambda (p ...) a-e))))]
     [(_ (n:id p:id ... . rest:id) #:handler opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
@@ -560,7 +490,7 @@ The language, without its reader and its standard library.
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'n
-             (monadic-lambda (p ... . rest) a-e))))]
+             (plain-lambda (p ... . rest) a-e))))]
     [(_ (n:id p:id ...) opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
@@ -569,20 +499,179 @@ The language, without its reader and its standard library.
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'n
-             (monadic-lambda (p ...) a-e))))]
+             (plain-lambda (p ...) a-e))))]
     [(_ (n:id p:id ... . rest:id) opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'regular
-                         #'n #'(list* p ... (Good-v rest)) specs #'(p ... . rest)))
+                         #'n #'(list* p ... (Good-v rest))
+                         specs #'(p ... . rest)))
      (quasisyntax/loc stx
        (define/known n
          #,(syntax/loc #'n
-             (monadic-lambda (p ... . rest) a-e))))]
+             (plain-lambda (p ... . rest) a-e))))]
     ))
 
 ;; Note the completely different syntax.
 (define-my-syntax my-define monadic-define define)
+
+;;; 
+;;; on-alert
+;;;
+
+(define-for-syntax (as-syntax x)
+  (cond
+    ((syntax? x) #`(quote-syntax #,x))
+    ((list? x) #`(list #,@(map as-syntax x)))
+    (else (raise-argument-error
+           'as-syntax "(or/c syntax? list?)" x))))
+
+;; As an optimization, this macro only expands to a call to the
+;; recovery function `recover` where the operation ID `op-id` of the
+;; operation expression `op-e` is on the list of IDs `(can-id ...)`
+;; supported by the recovery function.
+(define-syntax (maybe-recover stx)
+  (syntax-parse stx
+    [(_ (can-id:id ...+) recover:id op-id:id op-e:expr)
+     (cond
+       [(ormap (curry free-identifier=? #'op-id)
+               (syntax->list #'(can-id ...)))
+        #'(recover #'op-id op-e)]
+       [else
+        #'op-e])]))
+
+(define-syntax-parameter on-alert-lst '())
+
+(define-syntax* (on-alert stx)
+  (define-syntax-class clause
+    #:description "handler clause"
+    #:attributes (info)
+    (pattern
+     [(op:id ...) hnd:expr ...+]
+     #:attr info (list (syntax->list #'(op ...))
+                       (syntax->list #'(hnd ...)))))
+
+  ;; Produces syntax for an anonymous function which might do some
+  ;; context-sensitive recovery on a Bad input value.
+  (define (make-recover-lam lst)
+    ;;(printf "`on-alert` handlers: ~s~n" lst)
+    (with-syntax ([bad (generate-temporary 'bad)]
+                  [(cond-clause ...)
+                   (for/list ([spec lst])
+                     (with-syntax ([(decl-op ...) (first spec)]
+                                   [(action ...) (second spec)])
+                       #'[(or (free-identifier=? op-id #'decl-op) ...)
+                          action ...]))])
+      (define r
+        #'(lambda (op-id bad)
+            (syntax-parameterize ([value
+                                   (make-rename-transformer #'bad)])
+              (cond
+                [(Good? bad) bad]
+                cond-clause ...
+                [else bad]))))
+      ;;(pretty-print (syntax->datum r))
+      r))
+  
+  (syntax-parse stx
+    ((_ (c:clause ...) e:expr ...+)
+     (define lst (append
+                  (reverse (attribute c.info))
+                  (syntax-parameter-value #'on-alert-lst)))
+     (cond
+       ((null? lst)
+        #'(let () e ...))
+       (else
+        (with-syntax ([new-lst (as-syntax lst)]
+                      [(can-id ...) (apply append (map first lst))]
+                      [recover-lam (make-recover-lam lst)])
+          #'(let ([recover recover-lam])
+              (syntax-parameterize ([on-alert-lst new-lst]
+                                    [on-alert-hook
+                                     (syntax-rules ()
+                                       [(_ op-id op-e)
+                                        (maybe-recover 
+                                         (can-id ...) recover 
+                                         op-id op-e)])])
+                e ...))))))))
+
+;;; 
+;;; direct mode
+;;; 
+
+(provide begin-direct)
+
+;; Enables direct mode for a block scope. The `b ...` expressions deal
+;; in bare values, except that native Erda functions work as usual.
+;; The "free variables" and their values should be given as `[p e]
+;; ...` for unwrapping.
+(define-syntax* (let-direct stx)
+  (syntax-parse stx
+    [(_ ([p:id e:expr] ...) b:expr ...+)
+     ;; Define a primitive for history recording.
+     (define/with-syntax fun (generate-temporary 'let-direct))
+     #'(letrec
+           ([fun
+             (lambda (p ...)
+               (begin-direct b ...))])
+         (monadic-apply-primitive fun (list e ...)))]))
+
+;;; 
+;;; `if` and other conditionals
+;;; 
+
+(provide if-then)
+
+;; This function is a `#:handler` in the sense that it allows a bad
+;; then or else expression, long as it is not used.
+(define/known if-then
+  (plain-lambda
+   (c t-lam e-lam)
+   (cond
+     [(Good? c)
+      (define v (Good-v c))
+      (define lam
+        (if v t-lam e-lam))
+      (cond
+        [(Good? lam) ((Good-v lam))]
+        [else
+         (bad-condition #:bad-arg if-then (list c t-lam e-lam))])]
+     [else
+      (bad-condition #:bad-arg if-then (list c t-lam e-lam))])))
+
+(define-syntax (monadic-if stx)
+  (syntax-parse stx
+    [(_ c:expr t:expr e:expr)
+     #'(monadic-app if-then c (my-thunk t) (my-thunk e))]))
+
+(define-my-syntax my-if monadic-if if)
+
+(define-syntax monadic-or
+  (syntax-rules ()
+    [(_) (Good #f)]
+    [(_ e) e]
+    [(_ e0 e ...)
+     (let ([v e0])
+       (monadic-if v v (monadic-or e ...)))]))
+
+(define-my-syntax my-or monadic-or or)
+
+(define-syntax monadic-and
+  (syntax-rules ()
+    [(_) (Good #t)]
+    [(_ e) e]
+    [(_ e0 e ...)
+     (monadic-if e0 (monadic-and e ...) (Good #f))]))
+
+(define-my-syntax my-and monadic-and and)
+
+(define-syntax (monadic-cond stx)
+  (syntax-parse stx
+    [(_ [#:else e:expr ...+]) #'(begin e ...)]
+    [(_ [c:expr t:expr ...+] . rest)
+     #'(monadic-if c (begin t ...) (monadic-cond . rest))]))
+
+(define-my-syntax my-cond monadic-cond cond)
 
 ;;; 
 ;;; `apply`
