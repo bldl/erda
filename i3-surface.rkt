@@ -599,8 +599,6 @@ The language, without its reader and its standard library.
 ;;; direct mode
 ;;; 
 
-(provide begin-direct)
-
 ;; Enables direct mode for a block scope. The `b ...` expressions deal
 ;; in bare values, except that native Erda functions work as usual.
 ;; The "free variables" and their values should be given as `[p e]
