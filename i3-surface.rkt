@@ -389,6 +389,20 @@ The language, without its reader and its standard library.
      (syntax/loc stx
        (letrec ([n (plain-lambda ps a-e)])
          n))]
+    [(_ (p:id ...) #:primitive opts:maybe-alerts b:expr ...+)
+     (define specs (map alert-spec->ast (attribute opts.alerts)))
+     (define lam-id (generate-temporary 'lambda))
+     (define/with-syntax (pw ...) (generate-temporaries #'(p ...)))
+     (define body-stx
+       #'(let ([p (Good-v pw)] ...)
+           b ...))
+     (define/with-syntax a-e
+       (mk-alerting-expr body-stx stx 'primitive
+                         lam-id #'(list pw ...) specs #'(pw ...)))
+     (define/with-syntax n lam-id)
+     (syntax/loc stx
+       (letrec ([n (plain-lambda (pw ...) a-e)])
+         n))]
     [(_ () b:expr ...+) ;; optimize no-args-or-alerts case
      (syntax/loc stx
        (plain-lambda () b ...))]
@@ -439,8 +453,7 @@ The language, without its reader and its standard library.
     [(_ (n:id p ...) #:is tgt:id #:direct)
      (syntax/loc stx
        (define/known n
-         (plain-lambda (p ...)
-           (#%app tgt p ...))))]
+         (Good tgt)))]
     [(_ (n:id p:id ...) #:is tgt:id opts:maybe-alerts)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
@@ -606,13 +619,26 @@ The language, without its reader and its standard library.
 (define-syntax* (let-direct stx)
   (syntax-parse stx
     [(_ ([p:id e:expr] ...) b:expr ...+)
-     ;; Define a primitive for history recording.
-     (define/with-syntax fun (generate-temporary 'let-direct))
-     #'(letrec
-           ([fun
-             (lambda (p ...)
-               (begin-direct b ...))])
-         (monadic-apply-primitive fun (list e ...)))]))
+     (syntax/loc stx
+       (monadic-app
+        ;; We need a function value in any case for history.
+        (monadic-lambda (p ...)
+          #:primitive
+          (begin-direct b ...))
+        e ...))]))
+
+;; A `let-direct` with support for alert declarations.
+(define-syntax* (let-direct+ stx)
+  (syntax-parse stx
+    [(_ ([p:id e:expr] ...) opts:maybe-alerts b:expr ...+)
+     (define/with-syntax (alert ...) (attribute opts))
+     (syntax/loc stx
+       (monadic-app
+        ;; We need a function value in any case for history.
+        (monadic-lambda (p ...)
+          #:primitive alert ...
+          (begin-direct b ...))
+        e ...))]))
 
 ;;; 
 ;;; `if` and other conditionals
