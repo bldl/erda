@@ -392,16 +392,15 @@ The language, without its reader and its standard library.
     [(_ (p:id ...) #:primitive opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define lam-id (generate-temporary 'lambda))
-     (define/with-syntax (pw ...) (generate-temporaries #'(p ...)))
      (define body-stx
-       #'(let ([p (Good-v pw)] ...)
+       #'(let ([p (Good-v p)] ...)
            b ...))
      (define/with-syntax a-e
        (mk-alerting-expr body-stx stx 'primitive
-                         lam-id #'(list pw ...) specs #'(pw ...)))
+                         lam-id #'(list p ...) specs #'(p ...)))
      (define/with-syntax n lam-id)
      (syntax/loc stx
-       (letrec ([n (plain-lambda (pw ...) a-e)])
+       (letrec ([n (plain-lambda (p ...) a-e)])
          n))]
     [(_ () b:expr ...+) ;; optimize no-args-or-alerts case
      (syntax/loc stx
@@ -612,6 +611,34 @@ The language, without its reader and its standard library.
 ;;; direct mode
 ;;; 
 
+(define-syntax* (direct-lambda stx)
+  (syntax-parse stx
+    [(_ ps opts:maybe-alerts b:expr ...+)
+     (define/with-syntax (alert ...) (attribute opts))
+     (syntax/loc stx
+       (monadic-lambda ps
+         #:primitive alert ...
+         (begin-direct b ...)))]))
+
+(define-syntax* (define-direct stx)
+  (syntax-parse stx
+    [(_ (n:id p:id ...) . rest)
+     (syntax/loc stx
+       (define/known n
+         (direct-lambda (p ...) . rest)))]))
+
+;; A `let-direct` with support for alert declarations.
+(define-syntax* (let-direct+ stx)
+  (syntax-parse stx
+    [(_ ([p:id e:expr] ...) opts:maybe-alerts b:expr ...+)
+     (define/with-syntax (alert ...) (attribute opts))
+     (syntax/loc stx
+        ;; We need a function value in any case for history.
+       (monadic-app
+        (direct-lambda (p ...)
+          alert ... b ...)
+        e ...))]))
+
 ;; Enables direct mode for a block scope. The `b ...` expressions deal
 ;; in bare values, except that native Erda functions work as usual.
 ;; The "free variables" and their values should be given as `[p e]
@@ -620,25 +647,7 @@ The language, without its reader and its standard library.
   (syntax-parse stx
     [(_ ([p:id e:expr] ...) b:expr ...+)
      (syntax/loc stx
-       (monadic-app
-        ;; We need a function value in any case for history.
-        (monadic-lambda (p ...)
-          #:primitive
-          (begin-direct b ...))
-        e ...))]))
-
-;; A `let-direct` with support for alert declarations.
-(define-syntax* (let-direct+ stx)
-  (syntax-parse stx
-    [(_ ([p:id e:expr] ...) opts:maybe-alerts b:expr ...+)
-     (define/with-syntax (alert ...) (attribute opts))
-     (syntax/loc stx
-       (monadic-app
-        ;; We need a function value in any case for history.
-        (monadic-lambda (p ...)
-          #:primitive alert ...
-          (begin-direct b ...))
-        e ...))]))
+       (let-direct+ ([p e] ...) b ...))]))
 
 ;;; 
 ;;; `if` and other conditionals

@@ -13,6 +13,16 @@
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+(define-direct (thrice x)
+  (+ x x x))
+(thrice 3)
+
+(define-direct (xy x y)
+  #:alert ([are-equal pre-when (= x y)]) 
+  (* x y))
+(xy 1 1)
+(xy 3 4)
+
 ((thunk 42))
 ((lambda (x) x) 42)
 ((lambda (x) x) (raise 'bad))
