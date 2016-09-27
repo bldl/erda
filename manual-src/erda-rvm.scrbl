@@ -11,19 +11,19 @@
 @defmodulelang[erda/rvm
   #:use-sources (erda/i1-surface erda/i1-lib)]
 
-The @deftech{@ErdaRkt} language is a dynamically typed language that includes an @defterm{alerts} mechanism for declarative error reporting, and transparently propagates errors as data values.
+The @deftech[#:key "ErdaRkt"]{@ErdaRkt} language is a dynamically typed language that includes an @defterm{alerts} mechanism for declarative error reporting, and transparently propagates errors as data values.
 
 This document describes the syntax and semantics of a selection of the @|ErdaRkt|-specific constructs.
 
 The @racketmodname[erda/rvm] language also inherits a number of constructs directly from Racket, including the @racket[begin], @racket[begin0], @racket[let], @racket[let*], @racket[letrec], @racket[require], and @racket[provide] syntactic forms, and the @racket[not] function. These forms should therefore behave as described in the Racket documentation. Note, however, that functions may seemingly behave differently due to @ErdaRkt's different function application semantics.
 
-@section{Modules and Macros}
+@section[#:tag "erda-mods"]{Modules and Macros}
 
 The Racket @racket[require] and @racket[provide] forms (and associated sub-forms) may be used in Erda as normal to import modules and to define the interfaces exposed by modules.
 
 Macros are not included in the language by default, but there is nothing preventing from @racket[require]'ing macro support from Racket.
 
-@section{Defining Forms}
+@section[#:tag "erda-defs"]{Defining Forms}
 
 @defform*[((define id expr)
 	   (define (id arg ...) maybe-alerts expr ...+)
@@ -131,7 +131,7 @@ For example:
     [else 'otherwise]))}
 
 @defform[(let-direct ([arg expr] ...) body ...+)]{
-Locally switches to a bare-value ``evaluation mode,'' for the @racket[body] expressions. Each argument value, given by @racket[expr], is unwrapped and bound to the corresponding @racket[arg], which must be an identifier. Said identifiers will be bound in the scope of the body. The result of the body expressions is then again wrapped, in either a good or bad wrapper, based on the DI. The overall expression fails if any @racket[expr] yields a bad value, and in that case the body is left unevaluated.
+Locally switches to a ``direct'' computation mode so that the @racket[body] expressions compute with bare values, without implicit error processing. Each argument value, given by @racket[expr], is unwrapped and bound to the corresponding @racket[arg], which must be an identifier. Said identifiers will be bound in the scope of the body. The result of the body expressions is then again wrapped, in either a good or bad wrapper, based on the DI. The overall expression fails if any @racket[expr] yields a bad value, and in that case the body is left unevaluated.
 }
 
 @defform[#:literals (_)
@@ -215,10 +215,10 @@ For example:
 @(interaction #:eval the-eval
   (bad-result? (raise 'worst)))}
 
-@defproc[(raise [alert-name good-result?]) bad-result?]{
+@defproc[(raise [alert-name result?]) bad-result?]{
 Creates a new bad value with the specified @racket[alert-name], passed in as a wrapped symbol. The constructed bad value will have no history beyond the call to this function.}
 
-@defproc[(raise-with-cause [alert-name good-result?] [cause bad-result?]) bad-result?]{
+@defproc[(raise-with-cause [alert-name result?] [cause bad-result?]) bad-result?]{
 Creates a new bad value with the specified @racket[alert-name] and the specified @racket[cause], where @racket[cause] should be a badness that triggered the error being raised. The constructed bad value will have @racket[cause] as a separate ``branch'' of history.
 
 For example:

@@ -1,21 +1,22 @@
 #lang scribble/manual
 @(require "util.rkt")
 
-@title{Erda}
+@title[#:tag "erda"]{Erda}
 
 @author["Tero Hasu"]
 
-@ErdaRkt, @ErdaRktAssign, and @ErdaCxx constitute a family of small programming languages and implementations for experimenting with error handling mechanisms. We use the unqualified name @deftech{Erda} to refer to the language family as a whole, or any one member of the family where the languages are all alike in relevant respects.
+@tech[#:key "ErdaRkt" ErdaRkt], @tech[#:key "ErdaRktAssign" ErdaRktAssign], @tech[#:key "ErdaCxx" ErdaCxx], and @tech[#:key "ErdaGa" ErdaGa] constitute a family of small programming languages and implementations for experimenting with error handling mechanisms. We use the unqualified name @deftech{Erda} to refer to the language family as a whole, or any one member of the family where the languages are all alike in relevant respects.
 
 The ``concrete'' syntax of Erda resembles that of Racket (and Scheme).
 
 @include-section["erda-rvm.scrbl"]
 @include-section["erda-sigma-rvm.scrbl"]
 @include-section["erda-cxx.scrbl"]
+@include-section["erda-ga.scrbl"]
 
-@section{Example Code}
+@section[#:tag "erda-examples"]{Example Code}
 
-For sample @ErdaRkt code, see the @filepath{i1-program.rkt} file of the Erda implementation codebase. Said code should evaluate as is within the Racket VM; see the @exec{racket} command of your Racket installation.
+For sample @ErdaRkt code, see the @filepath{i1-program.rkt} file of the Erda implementation codebase. For @ErdaGa code, see @filepath{i3-program.rkt}. Those programs should evaluate as is within the Racket VM; see the @exec{racket} command of your Racket installation.
 
 For sample @ErdaCxx programs, see the @filepath{test-*.rkt} files and @filepath{program-*} projects in the @filepath{tests} directory of the codebase.
 
@@ -24,19 +25,19 @@ Most of the provided sample @ErdaCxx programs will evaluate as is within the Rac
 To run basic tests to verify that the Magnolisp compiler is available and working, you may run:
 @commandline{make test}
 
-@section{Source Code}
+@section[#:tag "erda-repo"]{Source Code}
 
-A Git repository of the Erda source code can be found at:
+The Erda source code repository is hosted at:
 @nested[#:style 'inset]{@url{https://github.com/bldl/erda}}
 
-@section[#:tag "install"]{Installation}
+@section[#:tag "erda-install"]{Installation}
 
 The pre-requisites for installing the software are:
 @itemlist[
 
  @item{@bold{Racket.} The primary implementation language of Erda. Version 6.3 (or higher) of Racket is required; a known-compatible version is 6.5, but versions 6.3--6.6 are all expected to work.}
 
- @item{@bold{Magnolisp.} A language and compiler serving as a basis for the implementation of @|ErdaCxx|. A known-compatible revision of Magnolisp is @|MAGNOLISPGITREV|.}
+ @item{@bold{Magnolisp.} A language and compiler serving as a basis for the implementation of @|ErdaCxx|. A known-compatible revision of Magnolisp is @|magnolisp-git-rev|.}
 
 ]
 
@@ -46,17 +47,17 @@ Racket is required for building and installation.
 Once Racket and its tools have been installed, the Magnolisp and Erda packages can be installed with the @exec{raco} commands:
 @nested[#:style 'inset]{
 @verbatim{
-raco pkg install git://github.com/bldl/magnolisp#@|short-MAGNOLISPGITREV|
-raco pkg install git://github.com/bldl/erda
+raco pkg install @|magnolisp-pkg-url|
+raco pkg install @|erda-pkg-url|
 }}
 
 The above commands should install the library, the command-line tool(s), and a HTML version of the manual.
 
-@section{License}
+@section[#:tag "erda-license"]{License}
 
 Except where otherwise noted, the following license applies:
 
-Copyright © 2014-2016 University of Bergen and the authors.
+Copyright © 2014--2016 University of Bergen and the authors.
 
 Authors: Tero Hasu
 

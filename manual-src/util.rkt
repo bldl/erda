@@ -11,19 +11,64 @@
 (define* ErdaCxx @elem{Erda@subscript{@italic{C++}}})
 (define* ErdaGa @elem{Erda@subscript{@italic{GA}}})
 
-(define-runtime-path MAGNOLISPGITREV-file
-  "../MAGNOLISPGITREV")
+;;; 
+;;; software revisions
+;;; 
 
-(define* MAGNOLISPGITREV
+(define-runtime-path GITREVDIR "..")
+
+(define (git-rev-file pkg)
+  (build-path
+   GITREVDIR
+   (string-append (string-upcase pkg) "GITREV")))
+
+(define* (git-rev pkg)
   (string-trim
    (call-with-input-file
-     MAGNOLISPGITREV-file
+     (git-rev-file pkg)
      port->string)))
 
-(define* short-MAGNOLISPGITREV
+(define* (maybe-git-rev pkg)
+  (with-handlers ([exn:fail:filesystem?
+                   (lambda (ex) #f)])
+    (git-rev pkg)))
+
+(define* (git-rev-shorten rev)
   (list->string
-   (for/list ((ch (in-string MAGNOLISPGITREV 0 7)))
+   (for/list ([ch (in-string rev 0 7)])
      ch)))
+
+(define* (short-git-rev pkg)
+  (git-rev-shorten (git-rev pkg)))
+
+(define* (maybe-short-git-rev pkg)
+  (define rev (maybe-git-rev pkg))
+  (and rev (git-rev-shorten rev)))
+
+(define* (sources-browse-url user pkg)
+  (define rev (maybe-git-rev pkg))
+  (if rev
+      (format
+       "https://github.com/~a/~a/tree/~a"
+       user pkg rev)
+      (format
+       "https://github.com/~a/~a"
+       user pkg)))
+
+(define* (pkg-install-url user pkg)
+  (define rev (maybe-short-git-rev pkg))
+  (if rev
+      (format "git://github.com/~a/~a#~a" user pkg rev)
+      (format "git://github.com/~a/~a" user pkg)))
+
+(define* magnolisp-git-rev
+  (git-rev "magnolisp"))
+
+(define* magnolisp-pkg-url
+  (pkg-install-url "bldl" "magnolisp"))
+
+(define* erda-pkg-url
+  (pkg-install-url "bldl" "erda"))
 
 ;;; 
 ;;; Racket syntax
@@ -78,3 +123,7 @@
 
 (define-syntax-rule* (ErdaRkt-racket datum)
   @elem{@ErdaRkt's @racket/ErdaRkt[datum]})
+
+(define-syntax-rule* (ErdaGa-like-ErdaRkt id form?)
+  @elem{@ErdaGa's @defidentifier[#'id #:form? form?]
+                  is like @ErdaRkt-racket[id]})

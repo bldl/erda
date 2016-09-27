@@ -10,7 +10,7 @@
 
 @defmodulelang[erda/cxx]
 
-The @deftech{@ErdaCxx} language is a statically typed language such that it includes an alerts mechanism for declarative error reporting, and transparently propagates errors as data values.
+The @deftech[#:key "ErdaCxx" ErdaCxx] language is a statically typed language such that it includes an alerts mechanism for declarative error reporting, and transparently propagates errors as data values.
 
 @ErdaCxx is very similar to @ErdaRkt, but with some notable differences:
 @itemlist[

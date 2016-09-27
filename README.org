@@ -1,3 +1,3 @@
 This is /Erda/, a family of little research programming languages. They are implemented in and on top of [[http://racket-lang.org/][Racket]] and [[http://magnolisp.github.io/][Magnolisp]], in a way that allows Racket tools to be used in the development of Erda programs. Code written in Erda can either be evaluated in the Racket VM, or translated into C++.
 
-More details can be found in the [[http://bldl.github.io/erda/][manual]], which also includes [[http://bldl.github.io/erda/#%28part._install%29][installation instructions]].
+More details can be found in the [[http://bldl.github.io/erda/][manual]], which also includes [[http://bldl.github.io/erda/#%28part._erda-install%29][installation instructions]].

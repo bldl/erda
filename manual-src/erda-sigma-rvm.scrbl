@@ -10,7 +10,7 @@
 
 @defmodulelang[erda/sigma-rvm]
 
-The @deftech{@ErdaRktAssign} language is a variant of @ErdaRkt such that it exports an assignment expression, and modified conditionals with optional cleanup actions. Only the additions are documented here.
+The @deftech[#:key "ErdaRktAssign" ErdaRktAssign] language is a variant of @ErdaRkt such that it exports an assignment expression, and modified conditionals with optional cleanup actions. Only the additions are documented here.
 
 @ErdaRktAssign's @racket[set!] form (for variable assignment) is the same as in Racket. Bad values also get assigned.
 
