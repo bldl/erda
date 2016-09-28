@@ -10,6 +10,7 @@ The language standard library.
          (only-in "util.rkt" [define* rdefine*])
          (only-in racket/base [list rlist] map andmap ormap
                   [if rif] [or ror] [and rand]
+                  [#%datum rdatum]
                   begin-for-syntax define-syntax define-syntax-rule
                   quote-syntax symbol? [apply rapply] [#%app rapp])
          (only-in racket/bool symbol=?)
@@ -215,6 +216,12 @@ The language standard library.
 ;;; error monadic sequencing
 ;;; 
 
+(require (only-in racket/base procedure? procedure-arity-includes?))
+
+(define-direct (procedure-with-arity? f arity)
+  (and (procedure? f)
+       (procedure-arity-includes? f arity)))
+
 (provide do >>=)
 
 ;; Identity monadic bind, which due to the language is error monadic,
@@ -223,6 +230,7 @@ The language standard library.
 ;; more abstract sense it is still like an identity monad's bind
 ;; operation.
 (define (>>= v f)
+  #:alert ([bad-arg pre-unless (procedure-with-arity? f 1)]) 
   (f v))
 ;; The implementation is as for the identity monad, due to our
 ;; language semantics, even though `M` is not an identity function on

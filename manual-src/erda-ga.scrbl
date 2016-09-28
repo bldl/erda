@@ -87,7 +87,7 @@ For example:
        'cond-was-bad))}
 
 @defproc[(>>= [v result?] [f result?]) result?]{
-An identity-monadic bind, such that @racket[v] is passed directly onto the function @racket[f] if both are good values.
+An identity-monadic bind, such that @racket[v] is passed directly onto the function @racket[f] if both are good arguments for @racket[>>=]. The argument @racket[f] must be a function callable with one argument.
 
 For example:
 @(interaction #:eval the-eval
