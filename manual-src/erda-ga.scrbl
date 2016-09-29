@@ -82,7 +82,11 @@ A combination of @racket[define] and @racket[direct-lambda].}
 		  [else-thunk (Result/c rkt.procedure?)]) Result?]{
 A handler function used in translation of @racket[if] forms.
 The @racket[cond-value] determines which thunk gets applied, and it is acceptable for the unapplied one to be bad.
-This function is not meant to be used directly, but it may be useful to know it, in order to be able to compare function values when inspecting history.}
+This function is not meant to be used directly, but it may be useful to know its binding, in order to be able to compare function values when inspecting history.
+
+For example:
+@(interaction #:eval the-eval
+  (if (raise 'bad) 1 2))}
 
 @defform[(cond cond-clause ... else-clause)
 	 #:grammar ([cond-clause (test-expr then-expr ...+)]
@@ -102,7 +106,8 @@ An identity-monadic bind, such that @racket[v] is passed directly onto the funct
 
 For example:
 @(interaction #:eval the-eval
-  (>>= #f not))}
+  (>>= #f not)
+  (>>= not #f))}
 
 @defform[#:literals (<-)
   (do sub-do ... expr)

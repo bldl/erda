@@ -54,7 +54,7 @@ The language, without its reader and its standard library.
   (begin-for-syntax
     (free-id-set-add! known-fun-set #'fun)))
 
-(define-syntax (define/known stx)
+(define-syntax (define-known stx)
   (syntax-parse stx
     [(_ (n:id . ps) . rest)
      #'(begin
@@ -65,16 +65,26 @@ The language, without its reader and its standard library.
          (define n . rest)
          (set-known-fun! n))]))
 
-(define-syntax define/known*
+(define-syntax define-known*
   (syntax-rules ()
     [(_ (id . ps) . rest)
      (begin
-       (define/known (id . ps) . rest)
+       (define-known (id . ps) . rest)
        (provide id))]
     [(_ id . rest)
      (begin
-       (define/known id . rest)
+       (define-known id . rest)
        (provide id))]))
+
+(define-syntax-rule
+  (Good-lambda n ps body ...)
+  (Good (procedure-rename (lambda ps body ...) n))) 
+
+(define-syntax-rule
+  (define-known-Good-lambda* n ps body ...)
+  (define-known* n
+    (Good-lambda 'n ps
+      body ...)))
 
 ;;; 
 ;;; literal value forms
@@ -280,10 +290,8 @@ The language, without its reader and its standard library.
 ;;;
 
 (define (wrap-primitive proc)
-  (Good (procedure-rename
-         (lambda wargs
-           (monadic-apply-primitive proc wargs))
-         (object-name proc))))
+  (Good-lambda (object-name proc) wargs
+    (monadic-apply-primitive proc wargs)))
 
 ;; Calls an unknown primitive, which thus has no declared error
 ;; unformation, but unwrapping and wrapping needs to happen in monadic
@@ -458,21 +466,26 @@ The language, without its reader and its standard library.
 ;;; function definition
 ;;; 
 
+(define (Good-procedure-rename proc name)
+  (Good (procedure-rename (Good-v proc) name)))
+
 (define-syntax (declare stx)
   (syntax-parse stx
     [(_ (n:id p ...) #:is tgt:id #:direct)
      (syntax/loc stx
-       (define/known n
-         (Good tgt)))]
+       (define-known n
+         (Good (procedure-rename tgt 'n))))]
     [(_ (n:id p:id ...) #:is tgt:id opts:maybe-alerts)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(tgt (Good-v p) ...) stx 'primitive
                          #'n #'(list p ...) specs #'(p ...)))
+     (define/with-syntax lam
+       (syntax/loc #'tgt
+         (plain-lambda (p ...) a-e)))
      (quasisyntax/loc stx
-       (define/known n
-         #,(syntax/loc #'tgt
-             (plain-lambda (p ...) a-e))))]
+       (define-known n
+         (Good-procedure-rename lam 'n)))]
     [(_ (n:id p:id ... . rest:id) #:is tgt:id opts:maybe-alerts)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
@@ -480,10 +493,12 @@ The language, without its reader and its standard library.
                          stx 'primitive
                          #'n #'(list* p ... (Good-v rest))
                          specs #'(p ... . rest)))
+     (define/with-syntax lam
+       (syntax/loc #'tgt
+         (plain-lambda (p ... . rest) a-e)))
      (quasisyntax/loc stx
-       (define/known n
-         #,(syntax/loc #'tgt
-             (plain-lambda (p ... . rest) a-e))))]
+       (define-known n
+         (Good-procedure-rename lam 'n)))]
     ))
 
 (define-syntax (monadic-define stx)
@@ -492,47 +507,57 @@ The language, without its reader and its standard library.
      (syntax/loc stx
        (define n e))]
     [(_ (n:id . p) #:direct b:expr ...+)
+     (define/with-syntax lam
+       (syntax/loc #'n
+         (plain-lambda p b ...)))
      (quasisyntax/loc stx
-       (define/known n
-         #,(syntax/loc #'n
-             (plain-lambda p b ...))))]
+       (define-known n
+         (Good-procedure-rename lam 'n)))]
     [(_ (n:id p:id ...) #:handler opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'handler
                          #'n #'(list p ...) specs #f))
+     (define/with-syntax lam
+       (syntax/loc #'n
+         (plain-lambda (p ...) a-e)))
      (quasisyntax/loc stx
-       (define/known n
-         #,(syntax/loc #'n
-             (plain-lambda (p ...) a-e))))]
+       (define-known n
+         (Good-procedure-rename lam 'n)))]
     [(_ (n:id p:id ... . rest:id) #:handler opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'handler
                          #'n #'(list* p ... (Good-v rest)) specs #f))
+     (define/with-syntax lam
+       (syntax/loc #'n
+         (plain-lambda (p ... . rest) a-e)))
      (quasisyntax/loc stx
-       (define/known n
-         #,(syntax/loc #'n
-             (plain-lambda (p ... . rest) a-e))))]
+       (define-known n
+         (Good-procedure-rename lam 'n)))]
     [(_ (n:id p:id ...) opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'regular
                          #'n #'(list p ...) specs #'(p ...)))
+     (define/with-syntax lam
+       (syntax/loc #'n
+         (plain-lambda (p ...) a-e)))
      (quasisyntax/loc stx
-       (define/known n
-         #,(syntax/loc #'n
-             (plain-lambda (p ...) a-e))))]
+       (define-known n
+         (Good-procedure-rename lam 'n)))]
     [(_ (n:id p:id ... . rest:id) opts:maybe-alerts b:expr ...+)
      (define specs (map alert-spec->ast (attribute opts.alerts)))
      (define/with-syntax a-e
        (mk-alerting-expr #'(begin b ...) stx 'regular
                          #'n #'(list* p ... (Good-v rest))
                          specs #'(p ... . rest)))
+     (define/with-syntax lam
+       (syntax/loc #'n
+         (plain-lambda (p ... . rest) a-e)))
      (quasisyntax/loc stx
-       (define/known n
-         #,(syntax/loc #'n
-             (plain-lambda (p ... . rest) a-e))))]
+       (define-known n
+         (Good-procedure-rename lam 'n)))]
     ))
 
 ;; Note the completely different syntax.
@@ -635,7 +660,7 @@ The language, without its reader and its standard library.
   (syntax-parse stx
     [(_ (n:id p:id ...) . rest)
      (syntax/loc stx
-       (define/known n
+       (define-known n
          (direct-lambda (p ...) . rest)))]))
 
 ;; A `let-direct` with support for alert declarations.
@@ -668,20 +693,22 @@ The language, without its reader and its standard library.
 
 ;; This function is a `#:handler` in the sense that it allows a bad
 ;; then or else expression, long as it is not used.
-(define/known if-then
-  (plain-lambda
-   (c t-lam e-lam)
-   (cond
-     [(Good? c)
-      (define v (Good-v c))
-      (define lam
-        (if v t-lam e-lam))
-      (cond
-        [(Good? lam) ((Good-v lam))]
-        [else
-         (bad-condition #:bad-arg if-then (list c t-lam e-lam))])]
-     [else
-      (bad-condition #:bad-arg if-then (list c t-lam e-lam))])))
+(define-known if-then
+  (Good-procedure-rename
+   (plain-lambda
+    (c t-lam e-lam)
+    (cond
+      [(Good? c)
+       (define v (Good-v c))
+       (define lam
+         (if v t-lam e-lam))
+       (cond
+         [(Good? lam) ((Good-v lam))]
+         [else
+          (bad-condition #:bad-arg if-then (list c t-lam e-lam))])]
+      [else
+       (bad-condition #:bad-arg if-then (list c t-lam e-lam))]))
+   'if-then))
 
 (define-syntax (monadic-if stx)
   (syntax-parse stx
@@ -723,25 +750,22 @@ The language, without its reader and its standard library.
 
 (provide (rename-out [monadic-apply apply]))
 
-(define/known* function?
+(define-known-Good-lambda* function? (x)
   (Good
-   (lambda (x)
-     (Good
-      (or (and (Good? x) (procedure? (Good-v x)))
-          (procedure? x))))))
+   (or (and (Good? x) (procedure? (Good-v x)))
+       (procedure? x))))
 
 ;; Contorted, to also allow `tgt` to be an unwrapped procedure.
-(define/known monadic-apply
-  (Good
-   (lambda (tgt wargs)
-     (cond
-       [(Good? wargs)
-        (apply monadic-app-fun tgt (Good-v wargs))]
-       [(procedure? tgt)
-        ;; Can call with a "bare" procedure, but `wargs` was bad.
-        (bad-condition #:bad-arg (wrap-primitive tgt) wargs)]
-       [else
-        (bad-condition #:bad-arg tgt wargs)]))))
+(define-known monadic-apply
+  (Good-lambda 'apply (tgt wargs)
+    (cond
+      [(Good? wargs)
+       (apply monadic-app-fun tgt (Good-v wargs))]
+      [(procedure? tgt)
+       ;; Can call with a "bare" procedure, but `wargs` was bad.
+       (bad-condition #:bad-arg (wrap-primitive tgt) wargs)]
+      [else
+       (bad-condition #:bad-arg tgt wargs)])))
   
 ;;; 
 ;;; recovery
@@ -807,36 +831,25 @@ The language, without its reader and its standard library.
 ;;; alert and documentation "contracts"
 ;;;
 
-(provide result-of? good-result-of?
-         result/e good-result/e)
+(define-known-Good-lambda* result-of? (f? x)
+  (Good ((Result/c f?) x)))
 
-(define/known result-of?
-  (Good
-   (lambda (f? x)
-     (Good ((Result/c f?) x)))))
-
-(define/known good-result-of?
-  (Good
-   (lambda (f? x)
-     (Good ((Good/c f?) x)))))
+(define-known-Good-lambda* good-result-of? (f? x)
+  (Good ((Good/c f?) x)))
 
 ;; Takes a primitive predicate `f?`, returning a wrapped value
 ;; processing predicate that applies the primitive predicate inside
 ;; any good value. The primitive need not hold for a bad value.
-(define/known result/e
+(define-known-Good-lambda* result/e (f?)
+  (define g? (Result/c f?))
   (Good
-   (lambda (f?)
-     (define g? (Result/c f?))
-     (Good
-      (lambda (x)
-        (Good (g? x)))))))
+   (lambda (x)
+     (Good (g? x)))))
 
 ;; Like `result/e`, but produces a predicate that does not hold for
 ;; bad values.
-(define/known good-result/e
+(define-known-Good-lambda* good-result/e (f?)
+  (define g? (Good/c f?))
   (Good
-   (lambda (f?)
-     (define g? (Good/c f?))
-     (Good
-      (lambda (x)
-        (Good (g? x)))))))
+   (lambda (x)
+     (Good (g? x)))))

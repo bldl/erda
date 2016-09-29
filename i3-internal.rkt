@@ -38,7 +38,9 @@ A language implementation internal API.
 (define* print-Bad-concisely?
   (make-parameter #f))
 
-(define concise-procedure-name-re #rx"[a-zA-Z0-9.-]+")
+(define (concise-procedure-name? s)
+  (and (regexp-match-exact? #px"[[:graph:]]+" s)
+       (not (regexp-match? #px"[/:]" s))))
 
 (define (concise-procedure-name v)
   (define n (object-name v))
@@ -46,7 +48,7 @@ A language implementation internal API.
     [(symbol? n)
      (define s (symbol->string n))
      (cond
-       [(regexp-match-exact? concise-procedure-name-re s)
+       [(concise-procedure-name? s)
         n]
        [else
         '<fun>])]
