@@ -4,7 +4,6 @@
 |#
 
 (require scribble/manual "../util.rkt")
-(require racket/runtime-path)
 
 (define* ErdaRkt @elem{Erda@subscript{@italic{RVM}}})
 (define* ErdaRktAssign @elem{Erda@subscript{@italic{RVM}}@superscript{σ}})
@@ -14,6 +13,8 @@
 ;;; 
 ;;; software revisions
 ;;; 
+
+(require racket/runtime-path)
 
 (define-runtime-path GITREVDIR "..")
 

@@ -1,10 +1,14 @@
 #lang scribble/manual
-@;;;###action ((master-file . "erda.scrbl") (quiet . t))
 @(require scribble/eval "util.rkt"
-	  (for-label erda/ga))
+  (for-label erda/ga erda/ga/contract
+    (only-in racket/contract -> any/c none/c or/c and/c)
+    (prefix-in rkt. racket/base)
+    ))
 
 @(define the-eval (make-base-eval))
-@(the-eval '(require erda/ga))
+@(the-eval '(require erda/ga
+              (only-in erda/i3-internal print-Bad-concisely?)))
+@(interaction-eval #:eval the-eval (print-Bad-concisely? #t))
 
 @title{@ErdaGa}
 
@@ -53,9 +57,16 @@ The ``regular'' @racket[lambda] form produces a function that processes wrapped 
 @defform[(thunk rest ...+)]{
 Like @racket[lambda] without parameters.}
 
-@defproc[(apply [fun result?] [args result?]) result?]{
+@defproc[(apply [fun Result?] [args Result?]) Result?]{
 Applies the specified @racket[fun]ction on the specified list of (wrapped) arguments @racket[args].
 (See the @racketidfont{args} functions for manipulating such lists.)}
+
+@defproc[(function? [x any/c]) (Good/c rkt.boolean?)]{
+A predicate recognizing values that may be applied, e.g., with @racket[apply].
+
+For example:
+@(interaction #:eval the-eval
+  (function? function?))}
 
 @defform[(let-direct ([arg expr] ...) body ...+)]{
 Behaves like @ErdaRkt-racket[let-direct], except that the definition of function application is not altered as radically as for @|ErdaRkt|.}
@@ -66,9 +77,9 @@ Similar to @racket[let-direct], but wraps the direct code into an anonymous func
 @defform[(define-direct (id arg ...) maybe-alerts body ...+)]{
 A combination of @racket[define] and @racket[direct-lambda].}
 
-@defproc[(if-then [cond-value good-result?]
-                  [then-thunk result?]
-		  [else-thunk result?]) result?]{
+@defproc[(if-then [cond-value Result?]
+                  [then-thunk (Result/c rkt.procedure?)]
+		  [else-thunk (Result/c rkt.procedure?)]) Result?]{
 A handler function used in translation of @racket[if] forms.
 The @racket[cond-value] determines which thunk gets applied, and it is acceptable for the unapplied one to be bad.
 This function is not meant to be used directly, but it may be useful to know it, in order to be able to compare function values when inspecting history.}
@@ -86,7 +97,7 @@ For example:
          [#:else 'otherwise])
        'cond-was-bad))}
 
-@defproc[(>>= [v result?] [f result?]) result?]{
+@defproc[(>>= [v Result?] [f Result?]) Result?]{
 An identity-monadic bind, such that @racket[v] is passed directly onto the function @racket[f] if both are good arguments for @racket[>>=]. The argument @racket[f] must be a function callable with one argument.
 
 For example:
@@ -104,15 +115,11 @@ Naturally, as Erdas process bad values throughout, any good first argument for @
 For example:
 @(interaction #:eval the-eval
   (define bad (raise 'bad))
-  (define (show x) #:handler
-    (if (bad-result? x)
-        (bad-result-alert-name x)
-	x))
-  (show (do 42))
-  (show (do bad 42))
-  (show (do [x <- bad] 42)))}
+  (do 42)
+  (do bad 42)
+  (do [x <- bad] 42))}
 
-@defproc[(not [v result?]) result?]{
+@defproc[(not [v Result?]) Result?]{
 Like @Racket-racket[not], but extended to process wrapped values.}
 
 There are still more commonalities in the two languages' syntax and standard library:
@@ -135,16 +142,16 @@ There are still more commonalities in the two languages' syntax and standard lib
 
 For inspecting the contents of bad values, @ErdaGa has functions such as @racket[bad-result-alert-name] (which is also in @ErdaRkt), @racket[bad-result-fun], and @racket[bad-result-args].
 
-@defproc[(bad-result-alert-name [v result?]) result?]{
+@defproc[(bad-result-alert-name [v Result?]) (Result/c rkt.symbol?)]{
 Returns the alert name of @racket[v] if it is a bad result.
 Otherwise returns a bad-argument error.}
 
-@defproc[(bad-result-fun [v result?]) result?]{
+@defproc[(bad-result-fun [v Result?]) Result?]{
 Returns the value whose application yielded the bad result @racket[v].
 (Such a value may not necessarily be a function, which would have caused a failure to apply it.)
 Returns a bad-argument error if @racket[v] is not a bad result.}
 
-@defproc[(bad-result-args [v result?]) result?]{
+@defproc[(bad-result-args [v Result?]) (Result/c rkt.list?)]{
 Returns the arguments of the failed operation that produced the bad result @racket[v], as an argument list containing wrapped values.
 (See the @racketidfont{args} functions for manipulating such lists.)
 Returns a bad-argument error if @racket[v] is not a bad result.}
@@ -153,26 +160,56 @@ For argument list manipulation @|ErdaGa|'s standard library includes the functio
 
 @ErdaGa is also able to ``replay'' failed operations with the @racket[redo], @racket[redo-apply], and @racket[redo-app] functions, all of which are handlers so that they can accept a bad result as their first argument. The latter two @racketidfont{redo} functions make it possible to invoke the failed operation with different arguments.
 
-@defproc[(redo [v result?]) result?]{
+@defproc[(redo [v Result?]) Result?]{
 Replays the failed operation that produced the result @racket[v].
 It will naturally fail again with the same result unless it was dependent on state.
 
 For example:
 @(interaction #:eval the-eval
-  (show (redo bad)))}
+  (redo bad))}
 
-@defproc[(redo-apply [v result?] [args result?]) result?]{
+@defproc[(redo-apply [v Result?] [args Result?]) Result?]{
 Replays the failed operation that produced the result @racket[v], but using the specified argument list @racket[args].
 
 For example:
 @(interaction #:eval the-eval
-  (show (redo-apply bad (args-list 'worse))))}
+  (redo-apply bad (args-list 'worse)))}
 
-@defproc[(redo-app [v result?] [arg result?] ...) result?]{
+@defproc[(redo-app [v Result?] [arg Result?] ...) Result?]{
 Replays the failed operation that produced the result @racket[v], but using the specified argument list @racket[arg ...].
 
 For example:
 @(interaction #:eval the-eval
-  (show (redo-app bad 'still-worse)))}
+  (redo-app bad 'still-worse))}
+
+@section{Contracts}
+
+@defmodule[erda/ga/contract]
+
+In documenting @ErdaGa functions, we state @tech[#:doc '(lib "scribblings/reference/reference.scrbl")]{contracts} for them as is usual for Racket documentation. These are stated so that they account for any bad-argument extension of the function, and are explicit about wrapped values. It is a @emph{programming error} to call a function with arguments that do not adhere to the contract.
+
+We specify the contracts for function arguments and results using predicates and predicate combinators, some of which come from Racket. Where we want to be explicit about our use of Racket primitives, we prefix them with @racketidfont{rkt.}.
+
+@|ErdaGa| also has an internal API that includes some of its own predicates such as @racket[Result?], @racket[Good?], and @racket[Bad?], and some  predicate combinators, which have a @racketidfont{/c} in their name, as is customary for contracts in Racket. These are only intended for internal use, documentation purposes, and perhaps for actually specifying enforced contracts.
+
+We are presently not documenting alert declarations, which are different in their role. In particular, any bad conditions covered by declared alerts cannot be a programming error, since cases are handled implicitly.
+
+@defproc[(Result? [x any/c]) rkt.boolean?]{
+A predicate that recognize's @|ErdaGa|'s wrapped values.}
+
+@defproc[(Good? [x any/c]) rkt.boolean?]{
+A predicate that recognize's @|ErdaGa|'s good wrapped values.}
+
+@defproc[(Bad? [x any/c]) rkt.boolean?]{
+A predicate that recognize's @|ErdaGa|'s bad wrapped values.}
+
+@deftogether[
+  (@defproc[(Result/c [p? rkt.procedure?]) (-> any/c rkt.boolean?)]
+   @defproc[(Good/c [p? rkt.procedure?]) (-> any/c rkt.boolean?)])]{
+For building predicates on wrapped values, in terms of a @emph{primitive} predicate that is passed in as an argument.
+
+That is, calling @racket[Result/c] or @racket[Good/c] instantiates a Racket predicate which applies the specified Racket primitive predicate @racket[p?] on any bare value inside a good value.
+
+The difference between the two functions is that @racket[Result/c] produces predicates that return @racket[#t] for bad values, while @racket[Good/c]'s predicates return @racket[#f] for bad values.}
 
 @(close-eval the-eval)

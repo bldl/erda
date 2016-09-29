@@ -65,6 +65,17 @@ The language, without its reader and its standard library.
          (define n . rest)
          (set-known-fun! n))]))
 
+(define-syntax define/known*
+  (syntax-rules ()
+    [(_ (id . ps) . rest)
+     (begin
+       (define/known (id . ps) . rest)
+       (provide id))]
+    [(_ id . rest)
+     (begin
+       (define/known id . rest)
+       (provide id))]))
+
 ;;; 
 ;;; literal value forms
 ;;; 
@@ -712,6 +723,13 @@ The language, without its reader and its standard library.
 
 (provide (rename-out [monadic-apply apply]))
 
+(define/known* function?
+  (Good
+   (lambda (x)
+     (Good
+      (or (and (Good? x) (procedure? (Good-v x)))
+          (procedure? x))))))
+
 ;; Contorted, to also allow `tgt` to be an unwrapped procedure.
 (define/known monadic-apply
   (Good
@@ -720,6 +738,7 @@ The language, without its reader and its standard library.
        [(Good? wargs)
         (apply monadic-app-fun tgt (Good-v wargs))]
        [(procedure? tgt)
+        ;; Can call with a "bare" procedure, but `wargs` was bad.
         (bad-condition #:bad-arg (wrap-primitive tgt) wargs)]
        [else
         (bad-condition #:bad-arg tgt wargs)]))))
@@ -783,3 +802,41 @@ The language, without its reader and its standard library.
                    (cond
                      catch-clause ...
                      catch-all-clause))))))]))
+
+;;; 
+;;; alert and documentation "contracts"
+;;;
+
+(provide result-of? good-result-of?
+         result/e good-result/e)
+
+(define/known result-of?
+  (Good
+   (lambda (f? x)
+     (Good ((Result/c f?) x)))))
+
+(define/known good-result-of?
+  (Good
+   (lambda (f? x)
+     (Good ((Good/c f?) x)))))
+
+;; Takes a primitive predicate `f?`, returning a wrapped value
+;; processing predicate that applies the primitive predicate inside
+;; any good value. The primitive need not hold for a bad value.
+(define/known result/e
+  (Good
+   (lambda (f?)
+     (define g? (Result/c f?))
+     (Good
+      (lambda (x)
+        (Good (g? x)))))))
+
+;; Like `result/e`, but produces a predicate that does not hold for
+;; bad values.
+(define/known good-result/e
+  (Good
+   (lambda (f?)
+     (define g? (Good/c f?))
+     (Good
+      (lambda (x)
+        (Good (g? x)))))))

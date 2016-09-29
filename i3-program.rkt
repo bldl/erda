@@ -5,13 +5,45 @@
 
 (require (only-in racket/base [#%app rapp]
                   = < > + - * / add1 sub1
+                  boolean? number? string? procedure?
                   exn:fail:contract:divide-by-zero? exit
                   writeln displayln))
 (require (only-in racket/function identity))
 (require (only-in racket/list first second third))
 (require (only-in racket/math nan?))
+(require erda/ga/contract)
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
+
+(rapp (rapp Result/c boolean?) #t)
+(rapp (rapp Result/c boolean?) 5)
+(rapp (rapp Result/c boolean?) (raise 'bad))
+(rapp (rapp Good/c boolean?) (raise 'bad))
+
+(result-of? number? 4)
+(result-of? number? "four")
+(result-of? number? (raise 'bad))
+(result-of? number? (raise-with-value 'bad "four"))
+(good-result-of? number? 4)
+(good-result-of? number? (raise-with-value 'bad 4))
+
+((result/e number?) 4)
+((result/e number?) "four")
+((result/e number?) (raise 'bad))
+((good-result/e number?) 4)
+((good-result/e number?) "four")
+((good-result/e number?) (raise 'bad))
+((good-result/e procedure?) (result/e number?))
+
+(define bad-0 (raise-with-value 'bad 0))
+(>>= 7 8)
+(>>= 7 bad-0)
+(>>= 7 (lambda (x) (rkt.add1 x)))
+(do [x <- 7] (rkt.add1 x))
+(do [x <- 7] [y <- (rkt.add1 x)] y)
+(do 7 (rkt.add1 7))
+(do bad-0 8) ;; bad
+(do [x <- bad-0] (default-to-bad x)) ;; bad
 
 (define-direct (thrice x)
   (+ x x x))
@@ -59,14 +91,6 @@ bad-if
     (on-alert ([(f1) 'inner-f1])
       (writeln (list (f1) (f2)))
       'done-on-alert)))
-
-(define bad-0 (raise-with-value 'bad 0))
-(>>= 7 (lambda (x) (rkt.add1 x)))
-(do [x <- 7] (rkt.add1 x))
-(do [x <- 7] [y <- (rkt.add1 x)] y)
-(do 7 (rkt.add1 7))
-(do bad-0 8) ;; bad
-(do [x <- bad-0] (default-to-bad x)) ;; bad
 
 (define b1 (car (list)))
 b1

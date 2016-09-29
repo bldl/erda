@@ -217,8 +217,9 @@ The language standard library.
 ;;; 
 
 (require (only-in racket/base procedure? procedure-arity-includes?))
+(provide function-with-arity?)
 
-(define-direct (procedure-with-arity? f arity)
+(define-direct (function-with-arity? f arity)
   (and (procedure? f)
        (procedure-arity-includes? f arity)))
 
@@ -230,7 +231,7 @@ The language standard library.
 ;; more abstract sense it is still like an identity monad's bind
 ;; operation.
 (define (>>= v f)
-  #:alert ([bad-arg pre-unless (procedure-with-arity? f 1)]) 
+  #:alert ([bad-arg pre-unless (function-with-arity? f 1)]) 
   (f v))
 ;; The implementation is as for the identity monad, due to our
 ;; language semantics, even though `M` is not an identity function on

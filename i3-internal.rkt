@@ -35,11 +35,37 @@ A language implementation internal API.
 (abstract-struct* Result () #:transparent)
 (concrete-struct* Good Result (v) #:transparent)
 
+(define* print-Bad-concisely?
+  (make-parameter #f))
+
+(define concise-procedure-name-re #rx"[a-zA-Z0-9.-]+")
+
+(define (concise-procedure-name v)
+  (define n (object-name v))
+  (cond
+    [(symbol? n)
+     (define s (symbol->string n))
+     (cond
+       [(regexp-match-exact? concise-procedure-name-re s)
+        n]
+       [else
+        '<fun>])]
+    [else '<fun>]))
+
 (define (bare-Good val)
-  (if (Good? val) (Good-v val) val))
+  (cond
+    [(Good? val)
+     (define v (Good-v val))
+     (cond
+       [(and (procedure? v)
+             (print-Bad-concisely?))
+        (concise-procedure-name v)]
+       [else
+        v])]
+    [else val]))
 
 (define (Bad-write v out mode)
-  (fprintf out "(Bad ~a" (Bad-name v))
+  (fprintf out "(Bad ~a:" (Bad-name v))
   (define fun (Bad-fun v))
   (fprintf out " ~s" (bare-Good fun))
   (for ((arg (Bad-args v)))
@@ -123,6 +149,25 @@ A language implementation internal API.
           (f? (Bad-fun v))
           (ormap f? (Bad-args v)))))
   (f? v))
+
+;;; 
+;;; contracts
+;;;
+
+;; Only meant to be used for documentation. In particular, not to be
+;; invoked with Erda semantics.
+(define* ((Result/c f?) x)
+  (cond
+    [(Good? x) (f? (Good-v x))]
+    [(Bad? x) #t]
+    [else #f]))
+
+;; Only meant to be used for documentation. In particular, not to be
+;; invoked with Erda semantics.
+(define* ((Good/c f?) x)
+  (cond
+    [(Good? x) (f? (Good-v x))]
+    [else #f]))
 
 ;;; 
 ;;; result `value`

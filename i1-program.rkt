@@ -317,6 +317,6 @@ Some test code written in the erda/rvm language.
 (factorial 0)
 (factorial 6)
 
-;; Cannot embed a Bad `bad-v` value like this since `raise-with-value`
-;; cannot take it, as it is not a #:handler.
+;; Can embed a Bad `bad-v` value like this since `raise-with-value`
+;; can take it, as it is a #:handler.
 (raise-with-value 'bad-with-bad-value (raise 'another-bad))

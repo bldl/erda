@@ -64,7 +64,7 @@ primitives.
   #:alert ([bad-arg pre-unless (alert-name? x)])
   (bad-condition #:original (rapp Good-v x) (r.quote-syntax raise)))
 
-(define* (raise-with-value x v)
+(define* (raise-with-value x v) #:handler
   #:alert ([bad-arg pre-unless (alert-name? x)])
   (bad-condition #:original (rapp Good-v x)
                  (r.quote-syntax raise-with-value)

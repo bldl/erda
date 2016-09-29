@@ -13,3 +13,4 @@ compiled/
 /dist/
 /doc/
 /gh-pages/
+/.dir-locals.el

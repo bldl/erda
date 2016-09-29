@@ -198,9 +198,9 @@ For example:
 
 This section lists a small selection of the @ErdaRkt standard library.
 
-The documented argument and result types (or predicates, rather) are only for informational purposes; they are not necessarily enforced using actual contracts (indeed the language does not have support for contracts built-in).
+The documented argument and result types (or predicates, rather) are only for informational purposes; they are not necessarily enforced using actual contracts (indeed @ErdaRkt does not have support for contracts built-in). Also, the contracts we use here are informal, in that we may mix and match Erda and Racket predicates.
 
-Some functions do have pre- and post-conditions specified with alert clauses, but these are not indicated in the signatures shown here; the signatures here reflect the functions' own ability to handle inputs. It is the @ErdaRkt language itself that does further enforcing, according to explicit or implicit alert conditions.
+Some functions do have pre- and post-conditions specified with alert clauses, but these are not indicated in the signatures shown here; the signatures here reflect the functions' own ability to handle inputs, as they have been implemented. The @ErdaRkt language itself does further bad-value extension, at call sites; this is different to @|ErdaGa|, where it is the functions that are extended, and thus become more capable at dealing with bad values, and this difference is reflected in their documented contracts.
 
 @defproc[(result? [x any/c]) good-result?]{
 A predicate that holds if @racket[x] is a wrapped value (whether good or bad). The result of the predicate is itself wrapped.}
@@ -215,10 +215,16 @@ For example:
 @(interaction #:eval the-eval
   (bad-result? (raise 'worst)))}
 
-@defproc[(raise [alert-name result?]) bad-result?]{
+@defproc[(alert-name? [x any/c]) good-result?]{
+A predicate that holds if @racket[x] is an alert name.}
+
+@defproc[(raise [alert-name alert-name?]) bad-result?]{
 Creates a new bad value with the specified @racket[alert-name], passed in as a wrapped symbol. The constructed bad value will have no history beyond the call to this function.}
 
-@defproc[(raise-with-cause [alert-name result?] [cause bad-result?]) bad-result?]{
+@defproc[(raise-with-value [alert-name alert-name?] [v result?]) bad-result?]{
+Creates a new bad value with the specified @racket[alert-name], and the specified value @racket[v], which was found to be unacceptable for some reason, giving raise to an alert. The value @racket[v] may have good or bad wrapping.}
+
+@defproc[(raise-with-cause [alert-name alert-name?] [cause result?]) bad-result?]{
 Creates a new bad value with the specified @racket[alert-name] and the specified @racket[cause], where @racket[cause] should be a badness that triggered the error being raised. The constructed bad value will have @racket[cause] as a separate ``branch'' of history.
 
 For example:
