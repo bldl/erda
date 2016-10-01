@@ -12,7 +12,7 @@
 
 The @deftech[#:key "ErdaCxx" ErdaCxx] language is a statically typed language such that it includes an alerts mechanism for declarative error reporting, and transparently propagates errors as data values.
 
-@ErdaCxx is very similar to @ErdaRkt, but with some notable differences:
+@ErdaCxx is very similar to @tech[#:key "ErdaRkt" ErdaRkt], but with some notable differences:
 @itemlist[
 
  @item{Provided that any referenced functions are implemented both for Racket and C++, the definitions appearing in a @racketmodname[erda/cxx] module (or collection thereof) may both be used directly from a Racket program, and translated into a C++ API and implementation usable from C++ programs. In contrast, the definitions appearing in a @racketmodname[erda/rvm] module are only intended for evaluation in the Racket VM.}

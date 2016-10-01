@@ -14,8 +14,8 @@ install :
 	$(MAKE) setup
 
 setup :
+	-rm -r doc
 	raco setup $(PKGNAME)
-	$(MAKE) api-doc
 
 clean :
 	find -name compiled -type d -print0 | xargs -0 --no-run-if-empty rm -r

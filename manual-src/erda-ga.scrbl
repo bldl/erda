@@ -52,7 +52,12 @@ A @racket[#:handler] is not protected from receiving bad values as arguments, un
 
 The body of a @racket[#:primitive lambda] is protected against bad arguments, and it is assumed that the body processes bare values, and produces a bare value. Any alerts that are given must be in terms of wrapped values, however.
 
-The ``regular'' @racket[lambda] form produces a function that processes wrapped values, but its @racket[body] can expect to see no bad arguments.}	   
+The ``regular'' @racket[lambda] form produces a function that processes wrapped values, but its @racket[body] can expect to see no bad arguments.
+
+For example:
+@(interaction #:eval the-eval
+  ((lambda (x) #:alert ([bad-arg pre-when #t]) x) 42)
+  ((lambda (x) #:handler 42) (raise 'bad)))}
 
 @defform[(thunk rest ...+)]{
 Like @racket[lambda] without parameters.}
@@ -200,13 +205,13 @@ We specify the contracts for function arguments and results using predicates and
 We are presently not documenting alert declarations, which are different in their role. In particular, any bad conditions covered by declared alerts cannot be a programming error, since cases are handled implicitly.
 
 @defproc[(Result? [x any/c]) rkt.boolean?]{
-A predicate that recognize's @|ErdaGa|'s wrapped values.}
+A predicate that recognizes @|ErdaGa|'s wrapped values.}
 
 @defproc[(Good? [x any/c]) rkt.boolean?]{
-A predicate that recognize's @|ErdaGa|'s good wrapped values.}
+A predicate that recognizes @|ErdaGa|'s good wrapped values.}
 
 @defproc[(Bad? [x any/c]) rkt.boolean?]{
-A predicate that recognize's @|ErdaGa|'s bad wrapped values.}
+A predicate that recognizes @|ErdaGa|'s bad wrapped values.}
 
 @deftogether[
   (@defproc[(Result/c [p? rkt.procedure?]) (-> any/c rkt.boolean?)]
