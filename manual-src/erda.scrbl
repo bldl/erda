@@ -16,7 +16,7 @@ The ``concrete'' syntax of Erda resembles that of Racket (and Scheme).
 
 @section[#:tag "erda-examples"]{Example Code}
 
-For sample @ErdaRkt code, see the @filepath{i1-program.rkt} file of the Erda implementation codebase. For @ErdaGa code, see @filepath{i3-program.rkt}. Those programs should evaluate as is within the Racket VM; see the @exec{racket} command of your Racket installation.
+For sample @ErdaRkt code, see the @filepath{i1-program.rkt} file of the Erda implementation codebase. For @ErdaGa code, see @filepath{i3-program.rkt}, and the more extensive examples under @filepath{tests/ga/test-*.rkt}. Those programs should evaluate as is within the Racket VM; see the @exec{racket} command of your Racket installation.
 
 For sample @ErdaCxx programs, see the @filepath{test-*.rkt} files and @filepath{program-*} projects in the @filepath{tests} directory of the codebase.
 

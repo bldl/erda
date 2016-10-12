@@ -38,6 +38,7 @@ The language, without its reader and its standard library.
          (rename-out [my-datum #%datum] [my-app #%app]
                      [my-quote quote]
                      [my-if if] [my-and and] [my-or or] [my-cond cond]
+                     [my-when when] [my-unless unless]
                      [my-lambda lambda] [my-lambda λ] [my-thunk thunk])
          begin begin0
          let let* letrec
@@ -744,6 +745,18 @@ The language, without its reader and its standard library.
 
 (define-my-syntax my-cond monadic-cond cond)
 
+(define-syntax-rule
+  (monadic-when c t ...)
+  (monadic-if c (let () t ...) (void)))
+
+(define-my-syntax my-when monadic-when when)
+
+(define-syntax-rule
+  (monadic-unless c t ...)
+  (monadic-if c (void) (let () t ...)))
+
+(define-my-syntax my-unless monadic-unless unless)
+
 ;;; 
 ;;; `apply`
 ;;; 
@@ -770,6 +783,34 @@ The language, without its reader and its standard library.
 ;;; 
 ;;; recovery
 ;;; 
+
+(provide :-:> :/:>)
+
+;; Good expression chaining. Sets `value` for the continuation.
+(define-syntax (:-:> stx)
+  (syntax-parse stx
+    [(_ e:expr)
+     #'e]
+    [(_ try-e:expr . rest)
+     #'(let ([r try-e])
+         (if (Good? r)
+             (syntax-parameterize ([value
+                                    (make-rename-transformer #'r)])
+               (:-:> . rest))
+             r))]))
+
+;; Bad expression chaining. Sets `value` for the continuation.
+(define-syntax (:/:> stx)
+  (syntax-parse stx
+    [(_ e:expr)
+     #'e]
+    [(_ try-e:expr . rest)
+     #'(let ([r try-e])
+         (if (Bad? r)
+             (syntax-parameterize ([value
+                                    (make-rename-transformer #'r)])
+               (:/:> . rest))
+             r))]))
 
 ;; A recovery chaining form. Tries the `try-e` expressions by
 ;; evaluating them in order, choosing either the first non-bad result,
@@ -801,31 +842,44 @@ The language, without its reader and its standard library.
      ((~datum _) h:expr ...+)
      #:attr then (syntax->list #'(h ...))))
 
+  (define-splicing-syntax-class no-catch
+    #:description "#:else clause for a `try`"
+    #:attributes (then)
+    (pattern
+     (~seq #:else h:expr ...+)
+     #:attr then (syntax->list #'(h ...))))
+
   (syntax-parse stx
-    [(_ b:expr ...+ #:catch cc:catch ... (~optional ec:catch-all))
-     (define r-stx (generate-temporary 'r))
-     (with-syntax ([r r-stx])
-       (with-syntax 
-         ([(catch-clause ...)
-           (for/list ([info (attribute cc.info)])
-             (define name-ids (first info))
-             (define then-stx-lst (second info))
-             (with-syntax ([(a ...) name-ids]
-                           [(then ...) then-stx-lst])
-               #'[(or (Result-contains-name? r (quote a)) ...)
-                  then ...]))]
-          [catch-all-clause
-           (let ([then-stx-lst (attribute ec.then)])
-             (if then-stx-lst
-                 #`[else #,@then-stx-lst]
-                 #'[else r]))])
-         #'(let ([r (let () b ...)])
-             (if (Good? r) r
-                 (syntax-parameterize ([value
-                                        (make-rename-transformer #'r)])
-                   (cond
-                     catch-clause ...
-                     catch-all-clause))))))]))
+    [(_ b:expr ...+ #:catch cc:catch ...
+        (~optional ec:catch-all)
+        (~optional nc:no-catch))
+     (define/with-syntax r (generate-temporary 'r))
+     (define/with-syntax (catch-clause ...)
+       (for/list ([info (attribute cc.info)])
+         (define name-ids (first info))
+         (define then-stx-lst (second info))
+         (with-syntax ([(a ...) name-ids]
+                       [(then ...) then-stx-lst])
+           #'[(or (Result-contains-name? r (quote a)) ...)
+              then ...])))
+     (define/with-syntax catch-all-clause
+       (let ([then-stx-lst (attribute ec.then)])
+         (if then-stx-lst
+             #`[else #,@then-stx-lst]
+             #'[else r])))
+     (define/with-syntax good-then
+       (let ([then-stx-lst (attribute nc.then)])
+         (if then-stx-lst
+             #`(let () #,@then-stx-lst)
+             #'r)))
+     #'(let ([r (let () b ...)])
+         (syntax-parameterize ([value
+                                (make-rename-transformer #'r)])
+           (if (Good? r)
+               good-then
+               (cond
+                 catch-clause ...
+                 catch-all-clause))))]))
 
 ;;; 
 ;;; alert and documentation "contracts"
