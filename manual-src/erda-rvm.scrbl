@@ -136,9 +136,9 @@ Locally switches to a ``direct'' computation mode so that the @racket[body] expr
 
 @defform[#:literals (_)
   (try body ...+ #:catch catch-clause maybe-catch-all)
-  #:grammar ([catch-clause ((id ...) then-expr ...+)]
-             [maybe-catch-all code:blank (_ then-expr ...+)])]{
-Evaluates the @racket[body] expressions, and if the last of them yields a bad result, then matches it against the @racket[catch-clause]s based on the alert name of the bad value. The optional @racket[maybe-catch-all] clause will match anything. If the body result is good, or if there is no matching clause, then that result remains the result of the overall expression. Otherwise the result is given by the last @racket[then-expr] of the first matching clause.
+  #:grammar ([catch-clause ((id ...) then-body ...+)]
+             [maybe-catch-all code:blank (_ then-body ...+)])]{
+Evaluates the @racket[body] expressions, and if the last of them yields a bad result, then matches it against the @racket[catch-clause]s based on the alert name of the bad value. The optional @racket[maybe-catch-all] clause will match anything. If the body result is good, or if there is no matching clause, then that result remains the result of the overall expression. Otherwise the result is given by the last @racket[then-body] expression of the first matching clause. Within a @racket[catch-clause], the bad value being handled is bound as @racket[value].
 
 For example:
 @(interaction #:eval the-eval
@@ -148,6 +148,8 @@ For example:
 	   [_ 3])
   (try (raise 'bad) #:catch [(worse worst) 3])
   (try 1 #:catch [_ 3])
+  (try 1 #:catch [_ (define x 1) x])
+  (try (raise 'bad) #:catch [_ (bad-result? value)])
   (try (raise 'bad) #:catch [_ 3]))
 }
 

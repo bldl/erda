@@ -29,7 +29,7 @@ check-pkg-deps :
 api-doc :
 	-rm -r doc
 	mkdir -p doc
-	scribble ++main-xref-in --html --dest doc --dest-name index.html manual-src/erda.scrbl
+	scribble ++main-xref-in --html --dest doc/erda --dest-name index.html manual-src/erda.scrbl
 
 rm-dist :
 	-rm -r $(DISTHOME)

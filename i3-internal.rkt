@@ -91,7 +91,7 @@ A language implementation internal API.
   #:transparent
   #:methods gen:custom-write
   [(define write-proc Bad-write)])
-(provide (except-out (struct-out Bad) Bad))
+(provide (struct-out Bad))
 
 ;; All error conditions are reported through this macro, providing as
 ;; much information about the nature of the error as feasible. In the

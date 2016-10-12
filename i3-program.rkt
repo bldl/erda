@@ -15,6 +15,8 @@
 (require (prefix-in rkt. racket/base))
 (require racket/flonum)
 
+(set-bad-result-args (raise 'bad) (args-list 'worse))
+
 (rapp (rapp Result/c boolean?) #t)
 (rapp (rapp Result/c boolean?) 5)
 (rapp (rapp Result/c boolean?) (raise 'bad))

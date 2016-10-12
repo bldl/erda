@@ -819,7 +819,7 @@ The language, without its reader and its standard library.
              (if then-stx-lst
                  #`[else #,@then-stx-lst]
                  #'[else r]))])
-         #'(let ([r (begin b ...)])
+         #'(let ([r (let () b ...)])
              (if (Good? r) r
                  (syntax-parameterize ([value
                                         (make-rename-transformer #'r)])

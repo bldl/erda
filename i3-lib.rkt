@@ -9,8 +9,8 @@ The language standard library.
 (require "i3-internal.rkt"
          (only-in "util.rkt" [define* rdefine*])
          (only-in racket/base [list rlist] map andmap ormap
-                  [if rif] [or ror] [and rand]
-                  [#%datum rdatum]
+                  [if rif] [or ror] [and rand] struct-copy
+                  [#%datum rdatum] [#%plain-lambda rplambda]
                   begin-for-syntax define-syntax define-syntax-rule
                   quote-syntax symbol? [apply rapply] [#%app rapp])
          (only-in racket/bool symbol=?)
@@ -41,6 +41,12 @@ The language standard library.
 (define* (bad-result? x) #:direct
   (rapp Good (rapp Bad? x)))
 
+(define* (result-named? x name) #:handler
+  #:alert ([bad-arg pre-unless (alert-name? name)])
+  (rapp Good (rand (rapp Bad? x)
+                   (rapp symbol=? (rapp Bad-name x)
+                         (rapp Good-v name)))))
+
 (define* (result-has-value? x) #:direct
   (rapp Good (rapp Result-has-immediate-value? x)))
 
@@ -62,6 +68,18 @@ The language standard library.
 (define* (bad-result-args x) #:handler
   #:alert ([bad-arg pre-unless (bad-result? x)])
   (rapp Good (rapp Bad-args x)))
+
+(define* (set-bad-result-args x args) #:handler
+  #:alert ([bad-arg pre-unless (and (bad-result? x)
+                                    (args-list? args))])
+  (struct-copy Bad x [args (rapp Good-v args)]))
+
+(define* (bad-result-args-map f v) #:handler
+  #:alert ([bad-arg pre-unless
+                    (and (function? f)
+                         (bad-result? v))])
+  (let ((args (args-map f (bad-result-args v))))
+    (set-bad-result-args v args)))
 
 (define* (result-value x) #:handler 
   #:alert ([bad-arg pre-unless (result-has-value? x)])
@@ -164,7 +182,10 @@ The language standard library.
 
 (define* (args-list? x)
   (let ((x (rapp Good-v x)))
-    (rif (rand (rapp rkt.list? x) (rapp andmap Result? x)) #t #f)))
+    (rif (rand (rapp rkt.list? x)
+               (rapp andmap Result? x))
+         #t
+         #f)))
 
 (define* (args-list . args) #:handler
   #:alert ([bad-arg pre-unless (rapp Good
@@ -195,6 +216,12 @@ The language standard library.
                    (rapp Good-v args)
                    (rapp Good-v pos)
                    v)))
+
+(define* (args-map f args)
+  #:alert ([bad-arg pre-unless
+                    (and (function? f)
+                         (args-list? args))])
+  (rapp Good (rapp map (rplambda (arg) (f arg)) (rapp Good-v args))))
 
 ;;; 
 ;;; redoing

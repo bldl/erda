@@ -6,7 +6,7 @@
     ))
 
 @(define the-eval (make-base-eval))
-@(the-eval '(require erda/ga
+@(the-eval '(require erda/ga (prefix-in rkt. racket/base)
               (only-in erda/i3-internal print-Bad-concisely?)))
 @(interaction-eval #:eval the-eval (print-Bad-concisely? #t))
 
@@ -165,6 +165,20 @@ Returns a bad-argument error if @racket[v] is not a bad result.}
 Returns the arguments of the failed operation that produced the bad result @racket[v], as an argument list containing wrapped values.
 (See the @racketidfont{args} functions for manipulating such lists.)
 Returns a bad-argument error if @racket[v] is not a bad result.}
+
+@defproc[(set-bad-result-args [v Result?] [args Result?]) Result?]{
+Functionally updates the bad result @racket[v] to contain the argument list @racket[args]. The length of the argument list should be compatible with any function recorded as @racket[(bad-result-fun v)].}
+
+@defproc[(bad-result-args-map [f Result?] [v Result?]) Result?]{
+Applies function @racket[f] to each argument in @racket[(bad-result-args v)], and then functionally updates the argument list of @racket[v] to be the resulting list.
+
+For example:
+@(interaction #:eval the-eval
+  (bad-result-args-map 1 2)
+  (bad-result-args-map (lambda (x) #:handler (rkt.add1 x))
+                       (bad-result-args-map 1 2))
+  (bad-result-args-map (lambda (x) #:handler (rkt.add1 x))
+                       (>>= 1 bad)))}
 
 For argument list manipulation @|ErdaGa|'s standard library includes the functions @defidentifier[#'args-list?], @defidentifier[#'args-list], @defidentifier[#'args-cons], @defidentifier[#'args-car], @defidentifier[#'args-cdr], and @defidentifier[#'args-list-set], which are similar to the Racket equivalents, but defined as handlers as necessary to be able to deal with bad values contained in argument lists.
 
