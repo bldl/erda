@@ -8,11 +8,12 @@ connection to the robot, with frequent `ConnectionFailed` alerts.
 |#
 
 (require (only-in racket/base
-                  [#%app rapp]
+                  [#%app rapp] [list rlist]
                   =
                   set! quasiquote unquote
                   sleep random
                   display displayln newline
+                  make-hasheq hash-set! hash-ref
                   write writeln flush-output)
          erda/i3-internal)
 
@@ -22,19 +23,21 @@ connection to the robot, with frequent `ConnectionFailed` alerts.
          set-back-led random-color
          set-heading random-heading)
 
-(define connected? #f)
-(define stabilization? #f)
+(define st (make-hasheq))
+(define (st-get n) (hash-ref st n #f))
+(define (st-set! n v) (hash-set! st n v))
+
+(define (connected?) (st-get 'connected))
+(define (stabilized?) (st-get 'set-stabilization))
 
 (define (print-state)
-  (display "connected: ") (write connected?)
-  (display " stabilization: ") (write stabilization?)
-  (newline))
+  (displayln st))
 
 (define (comms-succeed?)
-  (when (and connected? (= (random 5) 0))
-    (set! connected? #f))
-  ;;(rapp writeln `(comms-succeed? : ,(rapp Good-v connected?)))
-  connected?)
+  (when (and (connected?) (= (random 5) 0))
+    (st-set! 'connected #f)
+    (print-state))
+  (connected?))
 
 (define (fail-randomly?)
   (= (random 25) 0))
@@ -44,26 +47,21 @@ connection to the robot, with frequent `ConnectionFailed` alerts.
   (display "reconnecting...") (flush-output)
   (sleep t)
   (displayln "connected.")
-  (set! connected? #t)
+  (st-set! 'connected #t)
   (print-state)
   t)
 
 (define (send-recv cmd v)
   #:alert ([ConnectionFailed pre-unless (comms-succeed?)]
            [RandomFailure pre-when (fail-randomly?)])
-  ;;(sleep 1)
-  (rapp displayln `(send-recv ,(rapp Good-v cmd) ,(rapp Good-v v)))
+  (st-set! cmd v)
+  (displayln (rlist cmd v "OK"))
+  (print-state)
   v)
 
 ;; Set Stabilization (on/off value).
 (define (set-stabilization v)
-  (try
-   (send-recv 'set-stabilization v)
-   #:catch
-   #:else
-   (set! stabilization? v)
-   (print-state)
-   value))
+  (send-recv 'set-stabilization v))
 
 (define (random-stabilization)
   (if (= 0 (random 2)) #t #f))
@@ -86,7 +84,7 @@ connection to the robot, with frequent `ConnectionFailed` alerts.
 ;; Set Heading (2 byte value representing 0-359 degrees). Requires
 ;; stabilization to be on.
 (define (set-heading v)
-  #:alert ([StabilizationOff pre-unless stabilization?])
+  #:alert ([StabilizationOff pre-unless (stabilized?)])
   (send-recv 'set-heading v))
 
 (define (random-heading)
